@@ -1,11 +1,19 @@
 /**
- * ViaDecide SPA Router
- * Auto-generated — do not edit manually
- * Routes: 50 pages
+ * ViaDecide Router v2.0
+ * ─────────────────────────────────────────────────────────────
+ * HOW IT WORKS
+ *   - Intercepts ALL internal <a> clicks on every page
+ *   - Navigates via full-page load (window.location.assign)
+ *   - No SPA injection — every subpage loads as its own HTML document
+ *   - Safe to include on main page AND any subpage
+ *   - VDRouter.navigate(path) works for programmatic navigation
+ * ─────────────────────────────────────────────────────────────
  */
+
 const AppRouter = (function () {
     "use strict";
 
+    /* ── ROUTE MAP ──────────────────────────────────────────── */
     const ROUTES = {
         "/": "/index.html",
         "/404": "/404/index.html",
@@ -59,33 +67,106 @@ const AppRouter = (function () {
         "/why-small-businesses-dont-need-saas": "/why-small-businesses-dont-need-saas/index.html"
     };
 
-    const MOUNT_POINT = "#app";
+    /* ── HELPERS ────────────────────────────────────────────── */
 
-    function bindLinks() {
-        // No-op: we use standard full-page navigation for all internal links.
-        // Subpages are standalone HTML documents and must be loaded directly.
+    /** Normalise a pathname: strip trailing slash, collapse to "/" for root */
+    function cleanPath(pathname) {
+        const p = pathname.replace(/\/$/, "");
+        return p === "" ? "/" : p;
     }
 
+    /** Return true if the path is a known route */
+    function isKnownRoute(pathname) {
+        return Object.prototype.hasOwnProperty.call(ROUTES, cleanPath(pathname));
+    }
+
+    /** Skip asset extensions — let browser handle these normally */
+    const ASSET_RE = /\.(pdf|png|jpg|jpeg|gif|webp|svg|ico|css|js|json|glb|stl|woff2?|ttf|eot|mp4|mp3|webm)$/i;
+
+    /* ── NAVIGATE ───────────────────────────────────────────── */
+
+    /**
+     * Navigate to `path`.
+     * Uses full-page load so every subpage renders its own complete HTML.
+     *
+     * @param {string} path  - absolute path, e.g. "/pricing" or "/pricing/index.html"
+     */
     function navigate(path) {
-        // Always do a full page navigation so the correct subpage HTML is loaded.
-        window.location.assign(path);
+        // Resolve to canonical route path if possible
+        const pathname = path.split("?")[0].split("#")[0];
+        const canonical = cleanPath(pathname);
+        const hash = path.includes("#") ? "#" + path.split("#")[1] : "";
+        const search = path.includes("?") ? "?" + path.split("?")[1].split("#")[0] : "";
+
+        // If it's a known route, navigate to its canonical folder URL (cleaner)
+        if (isKnownRoute(canonical)) {
+            window.location.assign(canonical + search + hash);
+        } else {
+            // Unknown path — navigate as-is and let the server / 404 handle it
+            window.location.assign(path);
+        }
     }
 
-    function executeScripts() {
-        // No-op: not used with full-page navigation.
+    /* ── LINK INTERCEPTION ──────────────────────────────────── */
+
+    /**
+     * Listen for any click anywhere on the page.
+     * If the clicked element (or its ancestor) is an <a> pointing to an
+     * internal route, hand it off to navigate() instead of the default.
+     *
+     * Works on BOTH the main page and subpages.
+     */
+    function bindLinks() {
+        document.addEventListener("click", function (e) {
+            // Find the nearest <a> ancestor
+            const a = e.target.closest("a[href]");
+            if (!a) return;
+
+            let url;
+            try {
+                url = new URL(a.href, window.location.href);
+            } catch (_) {
+                return; // malformed href — ignore
+            }
+
+            // Only handle same-origin links
+            if (url.origin !== window.location.origin) return;
+
+            // Let hash-only jumps (#section) scroll natively
+            if (!url.pathname || (url.hash && url.pathname === window.location.pathname)) return;
+
+            // Let asset links download/open normally
+            if (ASSET_RE.test(url.pathname)) return;
+
+            // If this link points to a known route, handle it
+            if (isKnownRoute(url.pathname)) {
+                e.preventDefault();
+                navigate(url.pathname + url.search + url.hash);
+            }
+            // Unknown paths fall through to default browser behaviour
+        }, false);
     }
 
-    /** Expose routes list for debugging */
+    /* ── BROWSER BACK / FORWARD ─────────────────────────────── */
+    // Not needed — full-page loads mean the browser history stack is native
+    // and back/forward buttons work correctly out of the box.
+
+    /* ── PUBLIC API ─────────────────────────────────────────── */
+
     function routes() { return ROUTES; }
 
     function init() {
-        // No SPA injection — all navigation is standard full-page.
-        // popstate is handled natively by the browser.
+        bindLinks();
     }
 
     return { init, navigate, routes };
+
 })();
 
-// Also expose as VDRouter for legacy compatibility
-window.VDRouter = AppRouter;
-document.addEventListener("DOMContentLoaded", () => AppRouter.init());
+/* ── EXPOSE ─────────────────────────────────────────────────── */
+window.VDRouter   = AppRouter;   // primary global
+window.AppRouter  = AppRouter;   // alias
+
+document.addEventListener("DOMContentLoaded", function () {
+    AppRouter.init();
+});
