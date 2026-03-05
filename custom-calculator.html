@@ -1,0 +1,2532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Custom Calculator — ViaDecide</title>
+<style>
+/* ViaDecide UX Patch */
+* { -webkit-tap-highlight-color: transparent; }
+*, *::before, *::after { user-select: none; -webkit-user-select: none; }
+input, textarea, [contenteditable="true"], pre, code, .allow-select {
+  user-select: text; -webkit-user-select: text;
+}
+*:focus { outline: none; }
+*:focus-visible { outline: 2px solid #7ee8fa; outline-offset: 2px; border-radius: 3px; }
+::selection { background: #7ee8fa33; color: #e0f7ff; }
+
+:root {
+  --bg: #0d0f14;
+  --bg2: #13161e;
+  --bg3: #1a1e2a;
+  --bg4: #1f2334;
+  --accent: #7ee8fa;
+  --accent2: #5bcde0;
+  --accent-dim: rgba(126,232,250,0.12);
+  --accent-glow: 0 0 12px rgba(126,232,250,0.2);
+  --text: #d4ddf7;
+  --text2: #7c89a8;
+  --text3: #4a5470;
+  --border: #252a38;
+  --border2: #2e344a;
+  --success: #4ade80;
+  --warning: #f59e0b;
+  --danger: #f87171;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Offline Banner ── */
+#offline-banner {
+  background: linear-gradient(90deg, #1a1e2a, #1f2334);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text2);
+}
+#offline-banner span { flex: 1; }
+#offline-banner button {
+  background: none; border: none; color: var(--text3);
+  cursor: pointer; font-size: 14px; padding: 2px 6px;
+  border-radius: 4px; transition: color 0.2s;
+}
+#offline-banner button:hover { color: var(--text); }
+
+/* ── Header ── */
+.app-header {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.app-icon { font-size: 22px; }
+.app-title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: var(--text);
+}
+.app-badge {
+  background: var(--accent-dim);
+  border: 1px solid rgba(126,232,250,0.25);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 20px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-left: auto;
+}
+
+/* ── Command Orb ── */
+.orb-section {
+  padding: 14px 16px 0;
+}
+.orb-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 40px;
+  padding: 8px 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.orb-wrapper:focus-within {
+  border-color: rgba(126,232,250,0.4);
+  box-shadow: var(--accent-glow);
+}
+.orb-icon { font-size: 16px; flex-shrink: 0; }
+.orb-input {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  width: 100%;
+}
+.orb-input::placeholder { color: var(--text3); }
+.orb-hints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 0 0 4px;
+}
+.orb-hint {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.orb-hint:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+/* ── Main Layout ── */
+.app-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+@media (min-width: 768px) {
+  .app-body {
+    flex-direction: row;
+    align-items: flex-start;
+    min-height: calc(100vh - 120px);
+  }
+}
+
+/* ── Input Section ── */
+.input-section {
+  flex: 0 0 auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+@media (min-width: 768px) {
+  .input-section {
+    width: 360px;
+    min-height: calc(100vh - 120px);
+    border-right: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    max-height: 100vh;
+    overflow-y: auto;
+  }
+}
+
+.section-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text3);
+  margin-bottom: 8px;
+}
+
+/* ── Form Card ── */
+.form-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text2);
+  letter-spacing: 0.2px;
+}
+
+select, input[type="number"], input[type="text"] {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  padding: 10px 12px;
+  width: 100%;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  -webkit-appearance: none;
+  appearance: none;
+}
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237c89a8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+  cursor: pointer;
+}
+select:focus, input:focus {
+  border-color: rgba(126,232,250,0.45);
+  box-shadow: var(--accent-glow);
+}
+select option { background: #1a1e2a; }
+
+.field-error {
+  font-size: 11px;
+  color: var(--danger);
+  display: none;
+}
+.field-error.show { display: block; }
+
+/* Dynamic fields */
+#dynamic-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: all 0.3s;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.input-with-unit {
+  position: relative;
+}
+.input-with-unit input { padding-right: 42px; }
+.input-unit {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  color: var(--text3);
+  pointer-events: none;
+}
+
+/* ── Sticky Calc Bar ── */
+.calc-bar {
+  background: var(--bg2);
+  border-top: 1px solid var(--border);
+  padding: 12px 16px;
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+}
+@media (min-width: 768px) {
+  .calc-bar { position: sticky; bottom: 0; }
+}
+
+.btn-calculate {
+  width: 100%;
+  background: linear-gradient(135deg, #5bcde0 0%, #7ee8fa 100%);
+  border: none;
+  border-radius: var(--radius);
+  color: #0a0d12;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 13px 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.btn-calculate:hover {
+  box-shadow: 0 0 20px rgba(126,232,250,0.35);
+  transform: translateY(-1px);
+}
+.btn-calculate:active { transform: translateY(0); }
+
+/* ── Output Section ── */
+.output-section {
+  flex: 1;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 200px;
+  color: var(--text3);
+  text-align: center;
+}
+.empty-state-icon { font-size: 40px; opacity: 0.4; }
+.empty-state p { font-size: 13px; max-width: 240px; }
+
+/* ── Result Cards ── */
+.results-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.results-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+.results-meta {
+  font-size: 11px;
+  color: var(--text3);
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+@media (min-width: 560px) {
+  .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+.kpi-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  animation: fadeSlideIn 0.3s ease both;
+}
+.kpi-card:hover {
+  border-color: var(--border2);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+.kpi-card.highlight {
+  border-color: rgba(126,232,250,0.3);
+  background: linear-gradient(135deg, #13161e 0%, #1a2535 100%);
+  box-shadow: var(--accent-glow);
+}
+
+.kpi-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text3);
+}
+.kpi-value {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.5px;
+  line-height: 1.2;
+}
+.kpi-card.highlight .kpi-value { color: var(--accent); }
+.kpi-sub {
+  font-size: 11px;
+  color: var(--text2);
+}
+.kpi-trend {
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.kpi-trend.up { color: var(--success); }
+.kpi-trend.down { color: var(--danger); }
+.kpi-trend.neutral { color: var(--text3); }
+
+/* Breakdown Card */
+.breakdown-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  animation: fadeSlideIn 0.35s ease both;
+}
+.breakdown-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text3);
+  margin-bottom: 12px;
+}
+.breakdown-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.breakdown-row:last-child { border-bottom: none; }
+.breakdown-name { flex: 1; font-size: 13px; color: var(--text2); }
+.breakdown-bar-wrap { width: 80px; height: 4px; background: var(--bg3); border-radius: 4px; overflow: hidden; }
+.breakdown-bar { height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.6s ease; }
+.breakdown-value { font-size: 13px; font-weight: 600; color: var(--text); min-width: 70px; text-align: right; }
+
+/* Summary Table */
+.table-section {
+  animation: fadeSlideIn 0.4s ease both;
+}
+.table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.table-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text3);
+}
+.table-scroll { overflow-x: auto; border-radius: var(--radius-lg); }
+table {
+  width: 100%;
+  min-width: 360px;
+  border-collapse: collapse;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  font-size: 13px;
+}
+thead tr { background: var(--bg3); }
+thead th {
+  padding: 11px 14px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text3);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+tbody tr { transition: background 0.15s; }
+tbody tr:nth-child(even) { background: rgba(255,255,255,0.02); }
+tbody tr:hover { background: rgba(126,232,250,0.04); }
+tbody td {
+  padding: 10px 14px;
+  color: var(--text2);
+  border-bottom: 1px solid rgba(37,42,56,0.5);
+  white-space: nowrap;
+}
+tbody td:first-child { color: var(--text); font-weight: 500; }
+tbody td.accent-cell { color: var(--accent); font-weight: 600; }
+tfoot tr { background: var(--bg3); }
+tfoot td {
+  padding: 10px 14px;
+  font-weight: 700;
+  color: var(--text);
+  font-size: 12px;
+  border-top: 1px solid var(--border);
+}
+
+/* Export Bar */
+.export-bar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  animation: fadeSlideIn 0.45s ease both;
+}
+.btn-export {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text2);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 9px 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn-export:hover {
+  border-color: rgba(126,232,250,0.3);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+/* Footer */
+.app-footer {
+  padding: 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.footer-text { font-size: 11px; color: var(--text3); }
+.btn-clear {
+  background: none;
+  border: none;
+  color: var(--text3);
+  font-size: 11px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 0.2s;
+}
+.btn-clear:hover { color: var(--danger); }
+
+/* Animations */
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #3a4055; }
+
+/* Progress bar for values */
+.progress-wrap {
+  height: 3px;
+  background: var(--bg3);
+  border-radius: 3px;
+  margin-top: 6px;
+  overflow: hidden;
+}
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent2), var(--accent));
+  border-radius: 3px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Toast */
+#toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: var(--bg3);
+  border: 1px solid rgba(126,232,250,0.3);
+  border-radius: 40px;
+  padding: 10px 20px;
+  font-size: 13px;
+  color: var(--accent);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5), var(--accent-glow);
+  transition: transform 0.3s ease;
+  z-index: 999;
+  white-space: nowrap;
+}
+#toast.show { transform: translateX(-50%) translateY(0); }
+
+/* ── Currency Panel ── */
+.currency-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.currency-card.active {
+  border-color: rgba(126,232,250,0.35);
+  box-shadow: var(--accent-glow);
+}
+.currency-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.currency-header:hover { background: rgba(255,255,255,0.02); }
+.currency-icon { font-size: 16px; flex-shrink: 0; }
+.currency-title {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text2);
+  letter-spacing: 0.2px;
+}
+.currency-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 20px;
+  letter-spacing: 0.4px;
+  transition: all 0.2s;
+}
+.currency-badge.off {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text3);
+}
+.currency-badge.on {
+  background: rgba(126,232,250,0.15);
+  border: 1px solid rgba(126,232,250,0.35);
+  color: var(--accent);
+}
+.currency-body {
+  border-top: 1px solid var(--border);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.currency-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.currency-rate-wrap {
+  position: relative;
+}
+.currency-rate-wrap input { padding-right: 50px; }
+.currency-rate-label {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  pointer-events: none;
+  letter-spacing: 0.3px;
+}
+.rate-preview {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.rate-preview-eq {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.2px;
+}
+.rate-preview-eq span { color: var(--accent); }
+.rate-preview-flag { font-size: 18px; }
+.cur-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.cur-toggle-label { font-size: 12px; color: var(--text2); }
+.toggle-switch {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  flex-shrink: 0;
+}
+.toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+.toggle-track {
+  position: absolute;
+  inset: 0;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+.toggle-thumb {
+  position: absolute;
+  left: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  background: var(--text3);
+  border-radius: 50%;
+  transition: left 0.2s, background 0.2s;
+  pointer-events: none;
+}
+.toggle-switch input:checked ~ .toggle-track {
+  background: rgba(126,232,250,0.15);
+  border-color: rgba(126,232,250,0.4);
+}
+.toggle-switch input:checked ~ .toggle-thumb {
+  left: 21px;
+  background: var(--accent);
+}
+.cur-also-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.cur-also-label { font-size: 11px; color: var(--text3); }
+.cur-quick-btn {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.cur-quick-btn:hover, .cur-quick-btn.active-cur {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+/* Dual currency output */
+.kpi-dual {
+  font-size: 11px;
+  color: var(--text3);
+  font-weight: 500;
+  margin-top: 2px;
+  letter-spacing: -0.1px;
+}
+.kpi-dual span { color: rgba(126,232,250,0.6); }
+</style>
+</head>
+<body>
+
+<!-- Offline Banner -->
+<div id="offline-banner">
+  <span>📡 This tool works offline once loaded. No internet required after first load.</span>
+  <button onclick="dismissBanner()" aria-label="Dismiss">✕</button>
+</div>
+
+<!-- Header -->
+<header class="app-header">
+  <div class="app-icon">📌</div>
+  <div class="app-title">Custom Calculator</div>
+  <div class="app-badge">Beta</div>
+</header>
+
+<!-- Command Orb -->
+<div class="orb-section">
+  <div class="orb-wrapper">
+    <span class="orb-icon">◉</span>
+    <input class="orb-input" id="orb-input" type="text" placeholder="Type a command… reset, export, calculate, clear" aria-label="Command orb input">
+  </div>
+  <div class="orb-hints">
+    <span class="orb-hint" onclick="runOrb('calculate')">⚡ calculate</span>
+    <span class="orb-hint" onclick="runOrb('reset')">↺ reset</span>
+    <span class="orb-hint" onclick="runOrb('export')">⬇ export</span>
+    <span class="orb-hint" onclick="runOrb('clear')">🗑 clear</span>
+    <span class="orb-hint" onclick="runOrb('revenue')">revenue</span>
+    <span class="orb-hint" onclick="runOrb('profit')">profit</span>
+    <span class="orb-hint" onclick="runOrb('currency')">💱 currency</span>
+    <span class="orb-hint" onclick="runOrb('usd')">🇺🇸 usd</span>
+  </div>
+</div>
+
+<!-- Main Body -->
+<div class="app-body">
+
+  <!-- Input Section -->
+  <div class="input-section">
+    <div>
+      <div class="section-label">Configuration</div>
+      <div class="form-card">
+        <div class="form-group">
+          <label for="category">Category</label>
+          <select id="category" aria-label="Select category">
+            <option value="">— Select Category —</option>
+            <option value="revenue">Revenue</option>
+            <option value="expenses">Expenses</option>
+            <option value="profit">Profit Margin</option>
+            <option value="roi">Return on Investment (ROI)</option>
+            <option value="tax">Tax Estimation</option>
+            <option value="breakeven">Break-Even Analysis</option>
+            <option value="cashflow">Cash Flow</option>
+            <option value="payroll">Payroll Cost</option>
+          </select>
+          <span class="field-error" id="err-category">Please select a category.</span>
+        </div>
+
+        <div class="form-group">
+          <label for="calc-type">Type</label>
+          <select id="calc-type" aria-label="Select calculation type">
+            <option value="">— Select Type —</option>
+          </select>
+          <span class="field-error" id="err-type">Please select a type.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Currency Panel -->
+    <div>
+      <div class="section-label">Currency</div>
+      <div class="currency-card" id="currency-card">
+        <div class="currency-header" onclick="toggleCurrencyPanel()" role="button" tabindex="0" aria-label="Toggle currency settings" onkeydown="if(event.key==='Enter'||event.key===' ')toggleCurrencyPanel()">
+          <span class="currency-icon">💱</span>
+          <span class="currency-title">Multi-Currency Conversion</span>
+          <span class="currency-badge off" id="cur-badge">OFF</span>
+        </div>
+        <div class="currency-body" id="currency-body" style="display:none;">
+          <div class="cur-toggle-row">
+            <span class="cur-toggle-label">Enable currency conversion</span>
+            <label class="toggle-switch" aria-label="Enable currency conversion">
+              <input type="checkbox" id="cur-enabled" onchange="onCurrencyChange()">
+              <div class="toggle-track"></div>
+              <div class="toggle-thumb"></div>
+            </label>
+          </div>
+          <div class="currency-row">
+            <div class="form-group">
+              <label for="base-currency">Input Currency</label>
+              <select id="base-currency" aria-label="Base input currency" onchange="onCurrencyChange()"></select>
+            </div>
+            <div class="form-group">
+              <label for="target-currency">Output Currency</label>
+              <select id="target-currency" aria-label="Target output currency" onchange="onCurrencyChange()"></select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="exchange-rate">Live Exchange Rate <span style="font-weight:400;color:var(--text3)">(enter current rate)</span></label>
+            <div class="currency-rate-wrap">
+              <input type="number" id="exchange-rate" placeholder="e.g. 1.27" step="0.0001" min="0.0001"
+                aria-label="Exchange rate" inputmode="decimal" autocomplete="off" oninput="onRateInput()">
+              <span class="currency-rate-label" id="rate-unit-label">—</span>
+            </div>
+          </div>
+          <div class="rate-preview" id="rate-preview">
+            <div class="rate-preview-eq" id="rate-eq">Enter a rate above</div>
+            <div class="rate-preview-flag" id="rate-flag">🌐</div>
+          </div>
+          <div class="cur-also-row">
+            <span class="cur-also-label">Quick set:</span>
+            <button class="cur-quick-btn" onclick="quickCur('EUR','€',0.92)" aria-label="EUR">EUR</button>
+            <button class="cur-quick-btn" onclick="quickCur('GBP','£',0.79)" aria-label="GBP">GBP</button>
+            <button class="cur-quick-btn" onclick="quickCur('JPY','¥',149.5)" aria-label="JPY">JPY</button>
+            <button class="cur-quick-btn" onclick="quickCur('INR','₹',83.1)" aria-label="INR">INR</button>
+            <button class="cur-quick-btn" onclick="quickCur('CAD','C$',1.36)" aria-label="CAD">CAD</button>
+            <button class="cur-quick-btn" onclick="quickCur('AUD','A$',1.53)" aria-label="AUD">AUD</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Inputs</div>
+      <div class="form-card" id="dynamic-fields">
+        <div class="empty-state" style="min-height:80px;">
+          <p style="font-size:12px;">Select a category and type to see inputs</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="calc-bar">
+      <button class="btn-calculate" id="btn-calc" onclick="calculate()">
+        <span>⚡</span> Calculate
+      </button>
+    </div>
+  </div>
+
+  <!-- Output Section -->
+  <div class="output-section" id="output-section">
+    <div class="empty-state">
+      <div class="empty-state-icon">📊</div>
+      <p>Configure your inputs and hit Calculate to see results</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- Footer -->
+<div class="app-footer">
+  <span class="footer-text">ViaDecide Custom Calculator · Beta</span>
+  <button class="btn-clear" onclick="clearSavedData()">Clear saved data</button>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+(function(){
+  var touchActive=false;
+  document.addEventListener('touchstart',function(e){
+    touchActive=true;
+    if(document.activeElement&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)){
+      document.activeElement.blur();
+    }
+  },{passive:true});
+  document.addEventListener('touchend',function(){
+    setTimeout(function(){touchActive=false;},300);
+  },{passive:true});
+  document.addEventListener('focusin',function(e){
+    if(touchActive) e.target.setAttribute('data-touch-focus','1');
+    else e.target.removeAttribute('data-touch-focus');
+  });
+  var s=document.createElement('style');
+  s.textContent='[data-touch-focus]:focus-visible{outline:none!important;}';
+  document.head.appendChild(s);
+})();
+
+/* ── Data Model ── */
+const STORAGE_KEY = 'custom-calculator_data';
+let lastResults = null;
+
+const TYPES = {
+  revenue: ['Monthly Recurring','Annual Projection','Per Unit Revenue','Subscription Revenue'],
+  expenses: ['Fixed vs Variable','Monthly Overhead','Cost of Goods Sold','Operating Expenses'],
+  profit: ['Gross Profit Margin','Net Profit Margin','Operating Margin','EBITDA Margin'],
+  roi: ['Simple ROI','Annualised ROI','Marketing ROI','Project ROI'],
+  tax: ['Income Tax Estimate','Corporate Tax','Sales Tax','Self-Employment Tax'],
+  breakeven: ['Units Break-Even','Revenue Break-Even','Time to Break-Even','Break-Even with Target Profit'],
+  cashflow: ['Monthly Cash Flow','Operating Cash Flow','Free Cash Flow','Working Capital'],
+  payroll: ['Salary Payroll','Hourly Payroll','Contractor Cost','Total Payroll Budget'],
+};
+
+const FIELDS = {
+  revenue: {
+    'Monthly Recurring': [
+      {id:'mrr_rate', label:'Monthly Rate ($)', type:'number', unit:'$', placeholder:'e.g. 99'},
+      {id:'mrr_customers', label:'Active Customers', type:'number', placeholder:'e.g. 250'},
+      {id:'mrr_churn', label:'Monthly Churn Rate (%)', type:'number', unit:'%', placeholder:'e.g. 2.5'},
+      {id:'mrr_growth', label:'Monthly Growth Rate (%)', type:'number', unit:'%', placeholder:'e.g. 5'},
+    ],
+    'Annual Projection': [
+      {id:'ap_q1', label:'Q1 Revenue ($)', type:'number', unit:'$', placeholder:'0'},
+      {id:'ap_q2', label:'Q2 Revenue ($)', type:'number', unit:'$', placeholder:'0'},
+      {id:'ap_q3', label:'Q3 Revenue ($)', type:'number', unit:'$', placeholder:'0'},
+      {id:'ap_q4', label:'Q4 Revenue ($)', type:'number', unit:'$', placeholder:'0'},
+    ],
+    'Per Unit Revenue': [
+      {id:'pu_price', label:'Unit Price ($)', type:'number', unit:'$', placeholder:'e.g. 49.99'},
+      {id:'pu_units', label:'Units Sold', type:'number', placeholder:'e.g. 1000'},
+      {id:'pu_cogs', label:'Cost per Unit ($)', type:'number', unit:'$', placeholder:'e.g. 15'},
+      {id:'pu_overhead', label:'Monthly Overhead ($)', type:'number', unit:'$', placeholder:'e.g. 5000'},
+    ],
+    'Subscription Revenue': [
+      {id:'sub_monthly', label:'Monthly Subscribers', type:'number', placeholder:'e.g. 500'},
+      {id:'sub_annual', label:'Annual Subscribers', type:'number', placeholder:'e.g. 120'},
+      {id:'sub_m_price', label:'Monthly Plan Price ($)', type:'number', unit:'$', placeholder:'e.g. 29'},
+      {id:'sub_a_price', label:'Annual Plan Price ($)', type:'number', unit:'$', placeholder:'e.g. 249'},
+    ],
+  },
+  expenses: {
+    'Fixed vs Variable': [
+      {id:'fv_fixed', label:'Total Fixed Costs ($)', type:'number', unit:'$', placeholder:'e.g. 8000'},
+      {id:'fv_variable', label:'Variable Cost per Unit ($)', type:'number', unit:'$', placeholder:'e.g. 12'},
+      {id:'fv_units', label:'Units Produced', type:'number', placeholder:'e.g. 500'},
+      {id:'fv_revenue', label:'Total Revenue ($)', type:'number', unit:'$', placeholder:'e.g. 40000'},
+    ],
+    'Monthly Overhead': [
+      {id:'mo_rent', label:'Rent / Lease ($)', type:'number', unit:'$', placeholder:'e.g. 3000'},
+      {id:'mo_utilities', label:'Utilities ($)', type:'number', unit:'$', placeholder:'e.g. 400'},
+      {id:'mo_salaries', label:'Salaries ($)', type:'number', unit:'$', placeholder:'e.g. 12000'},
+      {id:'mo_other', label:'Other Expenses ($)', type:'number', unit:'$', placeholder:'e.g. 1200'},
+    ],
+    'Cost of Goods Sold': [
+      {id:'cogs_material', label:'Raw Materials ($)', type:'number', unit:'$', placeholder:'e.g. 5000'},
+      {id:'cogs_labor', label:'Direct Labor ($)', type:'number', unit:'$', placeholder:'e.g. 3000'},
+      {id:'cogs_overhead', label:'Manufacturing Overhead ($)', type:'number', unit:'$', placeholder:'e.g. 1500'},
+      {id:'cogs_units', label:'Units Produced', type:'number', placeholder:'e.g. 200'},
+    ],
+    'Operating Expenses': [
+      {id:'op_marketing', label:'Marketing ($)', type:'number', unit:'$', placeholder:'e.g. 2000'},
+      {id:'op_admin', label:'Admin / G&A ($)', type:'number', unit:'$', placeholder:'e.g. 1500'},
+      {id:'op_rd', label:'R&D ($)', type:'number', unit:'$', placeholder:'e.g. 800'},
+      {id:'op_other', label:'Other ($)', type:'number', unit:'$', placeholder:'e.g. 500'},
+    ],
+  },
+  profit: {
+    'Gross Profit Margin': [
+      {id:'gp_revenue', label:'Total Revenue ($)', type:'number', unit:'$', placeholder:'e.g. 100000'},
+      {id:'gp_cogs', label:'Cost of Goods Sold ($)', type:'number', unit:'$', placeholder:'e.g. 60000'},
+    ],
+    'Net Profit Margin': [
+      {id:'np_revenue', label:'Total Revenue ($)', type:'number', unit:'$', placeholder:'e.g. 100000'},
+      {id:'np_expenses', label:'Total Expenses ($)', type:'number', unit:'$', placeholder:'e.g. 80000'},
+    ],
+    'Operating Margin': [
+      {id:'om_revenue', label:'Total Revenue ($)', type:'number', unit:'$', placeholder:'e.g. 100000'},
+      {id:'om_cogs', label:'Cost of Goods Sold ($)', type:'number', unit:'$', placeholder:'e.g. 55000'},
+      {id:'om_opex', label:'Operating Expenses ($)', type:'number', unit:'$', placeholder:'e.g. 20000'},
+    ],
+    'EBITDA Margin': [
+      {id:'eb_revenue', label:'Total Revenue ($)', type:'number', unit:'$', placeholder:'e.g. 100000'},
+      {id:'eb_net', label:'Net Income ($)', type:'number', unit:'$', placeholder:'e.g. 12000'},
+      {id:'eb_tax', label:'Taxes ($)', type:'number', unit:'$', placeholder:'e.g. 5000'},
+      {id:'eb_da', label:'Depreciation & Amort. ($)', type:'number', unit:'$', placeholder:'e.g. 3000'},
+    ],
+  },
+  roi: {
+    'Simple ROI': [
+      {id:'roi_gain', label:'Net Profit ($)', type:'number', unit:'$', placeholder:'e.g. 25000'},
+      {id:'roi_cost', label:'Initial Investment ($)', type:'number', unit:'$', placeholder:'e.g. 100000'},
+    ],
+    'Annualised ROI': [
+      {id:'aroi_gain', label:'Net Profit ($)', type:'number', unit:'$', placeholder:'e.g. 25000'},
+      {id:'aroi_cost', label:'Initial Investment ($)', type:'number', unit:'$', placeholder:'e.g. 100000'},
+      {id:'aroi_years', label:'Holding Period (years)', type:'number', placeholder:'e.g. 3'},
+    ],
+    'Marketing ROI': [
+      {id:'mroi_revenue', label:'Revenue from Campaign ($)', type:'number', unit:'$', placeholder:'e.g. 50000'},
+      {id:'mroi_spend', label:'Marketing Spend ($)', type:'number', unit:'$', placeholder:'e.g. 10000'},
+      {id:'mroi_cogs', label:'Cost of Goods Sold ($)', type:'number', unit:'$', placeholder:'e.g. 20000'},
+    ],
+    'Project ROI': [
+      {id:'proi_benefit', label:'Project Benefits ($)', type:'number', unit:'$', placeholder:'e.g. 80000'},
+      {id:'proi_cost', label:'Project Costs ($)', type:'number', unit:'$', placeholder:'e.g. 50000'},
+      {id:'proi_months', label:'Project Duration (months)', type:'number', placeholder:'e.g. 12'},
+    ],
+  },
+  tax: {
+    'Income Tax Estimate': [
+      {id:'it_income', label:'Gross Income ($)', type:'number', unit:'$', placeholder:'e.g. 120000'},
+      {id:'it_deductions', label:'Deductions ($)', type:'number', unit:'$', placeholder:'e.g. 15000'},
+      {id:'it_rate', label:'Effective Tax Rate (%)', type:'number', unit:'%', placeholder:'e.g. 24'},
+    ],
+    'Corporate Tax': [
+      {id:'ct_profit', label:'Pre-Tax Profit ($)', type:'number', unit:'$', placeholder:'e.g. 200000'},
+      {id:'ct_rate', label:'Corporate Tax Rate (%)', type:'number', unit:'%', placeholder:'e.g. 21'},
+      {id:'ct_credits', label:'Tax Credits ($)', type:'number', unit:'$', placeholder:'e.g. 5000'},
+    ],
+    'Sales Tax': [
+      {id:'st_price', label:'Product Price ($)', type:'number', unit:'$', placeholder:'e.g. 250'},
+      {id:'st_qty', label:'Units Sold', type:'number', placeholder:'e.g. 100'},
+      {id:'st_rate', label:'Sales Tax Rate (%)', type:'number', unit:'%', placeholder:'e.g. 8.5'},
+    ],
+    'Self-Employment Tax': [
+      {id:'se_income', label:'Net Self-Employ. Income ($)', type:'number', unit:'$', placeholder:'e.g. 80000'},
+    ],
+  },
+  breakeven: {
+    'Units Break-Even': [
+      {id:'be_fixed', label:'Fixed Costs ($)', type:'number', unit:'$', placeholder:'e.g. 20000'},
+      {id:'be_price', label:'Selling Price per Unit ($)', type:'number', unit:'$', placeholder:'e.g. 50'},
+      {id:'be_vcpu', label:'Variable Cost per Unit ($)', type:'number', unit:'$', placeholder:'e.g. 20'},
+    ],
+    'Revenue Break-Even': [
+      {id:'brev_fixed', label:'Fixed Costs ($)', type:'number', unit:'$', placeholder:'e.g. 30000'},
+      {id:'brev_vcpct', label:'Variable Cost (% of Revenue)', type:'number', unit:'%', placeholder:'e.g. 40'},
+    ],
+    'Time to Break-Even': [
+      {id:'bt_fixed', label:'Fixed Costs ($)', type:'number', unit:'$', placeholder:'e.g. 50000'},
+      {id:'bt_monthly_contrib', label:'Monthly Contribution ($)', type:'number', unit:'$', placeholder:'e.g. 8000'},
+    ],
+    'Break-Even with Target Profit': [
+      {id:'btp_fixed', label:'Fixed Costs ($)', type:'number', unit:'$', placeholder:'e.g. 20000'},
+      {id:'btp_price', label:'Selling Price per Unit ($)', type:'number', unit:'$', placeholder:'e.g. 50'},
+      {id:'btp_vcpu', label:'Variable Cost per Unit ($)', type:'number', unit:'$', placeholder:'e.g. 20'},
+      {id:'btp_target', label:'Target Profit ($)', type:'number', unit:'$', placeholder:'e.g. 10000'},
+    ],
+  },
+  cashflow: {
+    'Monthly Cash Flow': [
+      {id:'cf_inflows', label:'Total Monthly Inflows ($)', type:'number', unit:'$', placeholder:'e.g. 45000'},
+      {id:'cf_outflows', label:'Total Monthly Outflows ($)', type:'number', unit:'$', placeholder:'e.g. 38000'},
+      {id:'cf_opening', label:'Opening Cash Balance ($)', type:'number', unit:'$', placeholder:'e.g. 20000'},
+    ],
+    'Operating Cash Flow': [
+      {id:'ocf_net', label:'Net Income ($)', type:'number', unit:'$', placeholder:'e.g. 30000'},
+      {id:'ocf_da', label:'Depreciation & Amort. ($)', type:'number', unit:'$', placeholder:'e.g. 5000'},
+      {id:'ocf_wc', label:'Change in Working Capital ($)', type:'number', unit:'$', placeholder:'e.g. -3000'},
+    ],
+    'Free Cash Flow': [
+      {id:'fcf_ocf', label:'Operating Cash Flow ($)', type:'number', unit:'$', placeholder:'e.g. 50000'},
+      {id:'fcf_capex', label:'Capital Expenditures ($)', type:'number', unit:'$', placeholder:'e.g. 15000'},
+    ],
+    'Working Capital': [
+      {id:'wc_current_assets', label:'Current Assets ($)', type:'number', unit:'$', placeholder:'e.g. 80000'},
+      {id:'wc_current_liab', label:'Current Liabilities ($)', type:'number', unit:'$', placeholder:'e.g. 35000'},
+    ],
+  },
+  payroll: {
+    'Salary Payroll': [
+      {id:'sp_employees', label:'Number of Employees', type:'number', placeholder:'e.g. 10'},
+      {id:'sp_avg_salary', label:'Average Annual Salary ($)', type:'number', unit:'$', placeholder:'e.g. 65000'},
+      {id:'sp_benefits_pct', label:'Benefits Rate (% of salary)', type:'number', unit:'%', placeholder:'e.g. 20'},
+      {id:'sp_tax_pct', label:'Payroll Tax Rate (%)', type:'number', unit:'%', placeholder:'e.g. 7.65'},
+    ],
+    'Hourly Payroll': [
+      {id:'hp_employees', label:'Number of Employees', type:'number', placeholder:'e.g. 5'},
+      {id:'hp_rate', label:'Hourly Rate ($)', type:'number', unit:'$', placeholder:'e.g. 22'},
+      {id:'hp_hours', label:'Hours per Week', type:'number', placeholder:'e.g. 40'},
+      {id:'hp_weeks', label:'Weeks per Year', type:'number', placeholder:'e.g. 52'},
+    ],
+    'Contractor Cost': [
+      {id:'cc_rate', label:'Daily Rate ($)', type:'number', unit:'$', placeholder:'e.g. 500'},
+      {id:'cc_days', label:'Days per Month', type:'number', placeholder:'e.g. 20'},
+      {id:'cc_months', label:'Contract Months', type:'number', placeholder:'e.g. 6'},
+    ],
+    'Total Payroll Budget': [
+      {id:'tpb_salary', label:'Total Salary Costs ($)', type:'number', unit:'$', placeholder:'e.g. 400000'},
+      {id:'tpb_benefits', label:'Benefits Total ($)', type:'number', unit:'$', placeholder:'e.g. 80000'},
+      {id:'tpb_taxes', label:'Payroll Taxes ($)', type:'number', unit:'$', placeholder:'e.g. 35000'},
+      {id:'tpb_other', label:'Other Payroll Costs ($)', type:'number', unit:'$', placeholder:'e.g. 10000'},
+    ],
+  },
+};
+
+/* ── Formatting ── */
+/* ── Currency Engine ── */
+const CURRENCIES = [
+  {code:'USD', symbol:'$',   flag:'🇺🇸', name:'US Dollar'},
+  {code:'EUR', symbol:'€',   flag:'🇪🇺', name:'Euro'},
+  {code:'GBP', symbol:'£',   flag:'🇬🇧', name:'British Pound'},
+  {code:'JPY', symbol:'¥',   flag:'🇯🇵', name:'Japanese Yen'},
+  {code:'CAD', symbol:'C$',  flag:'🇨🇦', name:'Canadian Dollar'},
+  {code:'AUD', symbol:'A$',  flag:'🇦🇺', name:'Australian Dollar'},
+  {code:'CHF', symbol:'Fr',  flag:'🇨🇭', name:'Swiss Franc'},
+  {code:'CNY', symbol:'¥',   flag:'🇨🇳', name:'Chinese Yuan'},
+  {code:'INR', symbol:'₹',   flag:'🇮🇳', name:'Indian Rupee'},
+  {code:'MXN', symbol:'MX$', flag:'🇲🇽', name:'Mexican Peso'},
+  {code:'BRL', symbol:'R$',  flag:'🇧🇷', name:'Brazilian Real'},
+  {code:'SGD', symbol:'S$',  flag:'🇸🇬', name:'Singapore Dollar'},
+  {code:'HKD', symbol:'HK$', flag:'🇭🇰', name:'Hong Kong Dollar'},
+  {code:'NOK', symbol:'kr',  flag:'🇳🇴', name:'Norwegian Krone'},
+  {code:'SEK', symbol:'kr',  flag:'🇸🇪', name:'Swedish Krona'},
+  {code:'DKK', symbol:'kr',  flag:'🇩🇰', name:'Danish Krone'},
+  {code:'NZD', symbol:'NZ$', flag:'🇳🇿', name:'New Zealand Dollar'},
+  {code:'ZAR', symbol:'R',   flag:'🇿🇦', name:'South African Rand'},
+  {code:'AED', symbol:'د.إ', flag:'🇦🇪', name:'UAE Dirham'},
+  {code:'KRW', symbol:'₩',   flag:'🇰🇷', name:'South Korean Won'},
+  {code:'TRY', symbol:'₺',   flag:'🇹🇷', name:'Turkish Lira'},
+  {code:'THB', symbol:'฿',   flag:'🇹🇭', name:'Thai Baht'},
+  {code:'SAR', symbol:'﷼',   flag:'🇸🇦', name:'Saudi Riyal'},
+  {code:'IDR', symbol:'Rp',  flag:'🇮🇩', name:'Indonesian Rupiah'},
+  {code:'MYR', symbol:'RM',  flag:'🇲🇾', name:'Malaysian Ringgit'},
+  {code:'PHP', symbol:'₱',   flag:'🇵🇭', name:'Philippine Peso'},
+  {code:'PLN', symbol:'zł',  flag:'🇵🇱', name:'Polish Złoty'},
+  {code:'ILS', symbol:'₪',   flag:'🇮🇱', name:'Israeli Shekel'},
+  {code:'CZK', symbol:'Kč',  flag:'🇨🇿', name:'Czech Koruna'},
+  {code:'HUF', symbol:'Ft',  flag:'🇭🇺', name:'Hungarian Forint'},
+  {code:'NGN', symbol:'₦',   flag:'🇳🇬', name:'Nigerian Naira'},
+  {code:'EGP', symbol:'E£',  flag:'🇪🇬', name:'Egyptian Pound'},
+  {code:'PKR', symbol:'₨',   flag:'🇵🇰', name:'Pakistani Rupee'},
+  {code:'VND', symbol:'₫',   flag:'🇻🇳', name:'Vietnamese Dong'},
+  {code:'KES', symbol:'Ksh', flag:'🇰🇪', name:'Kenyan Shilling'},
+  {code:'GHS', symbol:'₵',   flag:'🇬🇭', name:'Ghanaian Cedi'},
+];
+
+let curState = { enabled: false, baseCode: 'USD', targetCode: 'USD', rate: 1, baseSym: '$', targetSym: '$', targetFlag: '🇺🇸' };
+
+function getCurSym() { return curState.enabled && curState.rate !== 1 ? curState.targetSym : curState.baseSym; }
+function convertAmt(n) { return curState.enabled ? n * curState.rate : n; }
+
+function fmt(n) {
+  const v = convertAmt(n);
+  const sym = getCurSym();
+  const dp = (curState.enabled && curState.targetCode === 'JPY') ? 0 : 2;
+  const formatted = Math.abs(v).toLocaleString('en-US', {minimumFractionDigits:dp, maximumFractionDigits:dp});
+  return (v < 0 ? '-' : '') + sym + formatted;
+}
+function fmtRaw(n) {
+  // Format in base currency without conversion (for dual display)
+  return '$' + parseFloat(Math.abs(n).toFixed(2)).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+function fmtKPI(n) {
+  // Returns an object with formatted value and raw number for dual display
+  return { value: fmt(n), rawNum: n };
+}
+function fmtDual(n) {
+  // Returns secondary line showing both currencies when conversion active
+  if (!curState.enabled || curState.rate === 1 || curState.baseCode === curState.targetCode) return '';
+  const base = fmtRaw(n);
+  const converted = fmt(n);
+  return `<div class="kpi-dual">${base} → <span>${converted}</span></div>`;
+}
+const fmtN = n => parseFloat(n.toFixed(2)).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:2});
+const fmtPct = n => fmtN(n) + '%';
+
+/* ── Currency Panel Logic ── */
+function buildCurrencyDropdowns() {
+  const baseEl = document.getElementById('base-currency');
+  const targetEl = document.getElementById('target-currency');
+  if (!baseEl || !targetEl) return;
+  const opts = CURRENCIES.map(c => `<option value="${c.code}">${c.flag} ${c.code} — ${c.name}</option>`).join('');
+  baseEl.innerHTML = opts;
+  targetEl.innerHTML = opts;
+  baseEl.value = 'USD';
+  targetEl.value = 'USD';
+}
+
+function toggleCurrencyPanel() {
+  const body = document.getElementById('currency-body');
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'flex';
+  body.style.flexDirection = 'column';
+}
+
+function onCurrencyChange() {
+  const enabled = document.getElementById('cur-enabled').checked;
+  const baseCode = document.getElementById('base-currency').value;
+  const targetCode = document.getElementById('target-currency').value;
+  const rate = parseFloat(document.getElementById('exchange-rate').value) || 0;
+  const baseCur = CURRENCIES.find(c => c.code === baseCode) || CURRENCIES[0];
+  const targetCur = CURRENCIES.find(c => c.code === targetCode) || CURRENCIES[0];
+
+  // Update rate unit label
+  document.getElementById('rate-unit-label').textContent = targetCode;
+
+  // Update preview
+  updateRatePreview(baseCur, targetCur, rate);
+
+  // Update badge
+  const badge = document.getElementById('cur-badge');
+  const card = document.getElementById('currency-card');
+  if (enabled && rate > 0 && baseCode !== targetCode) {
+    badge.textContent = targetCode;
+    badge.className = 'currency-badge on';
+    card.classList.add('active');
+    curState = { enabled: true, baseCode, targetCode, rate, baseSym: baseCur.symbol, targetSym: targetCur.symbol, targetFlag: targetCur.flag };
+  } else {
+    badge.textContent = 'OFF';
+    badge.className = 'currency-badge off';
+    card.classList.remove('active');
+    curState = { enabled: false, baseCode, targetCode, rate, baseSym: baseCur.symbol, targetSym: targetCur.symbol, targetFlag: targetCur.flag };
+  }
+
+  // Highlight active quick buttons
+  document.querySelectorAll('.cur-quick-btn').forEach(btn => btn.classList.remove('active-cur'));
+  if (enabled) {
+    document.querySelectorAll('.cur-quick-btn').forEach(btn => {
+      if (btn.getAttribute('aria-label') === targetCode) btn.classList.add('active-cur');
+    });
+  }
+
+  saveData();
+}
+
+function onRateInput() { onCurrencyChange(); }
+
+function updateRatePreview(baseCur, targetCur, rate) {
+  const eq = document.getElementById('rate-eq');
+  const flag = document.getElementById('rate-flag');
+  if (rate > 0 && baseCur && targetCur) {
+    eq.innerHTML = `1 <span>${baseCur.symbol}${baseCur.code}</span> = <span>${rate} ${targetCur.symbol}${targetCur.code}</span>`;
+    flag.textContent = targetCur.flag;
+  } else {
+    eq.innerHTML = 'Enter a rate above';
+    flag.textContent = '🌐';
+  }
+}
+
+function quickCur(code, sym, rate) {
+  document.getElementById('cur-enabled').checked = true;
+  document.getElementById('target-currency').value = code;
+  document.getElementById('exchange-rate').value = rate;
+  onCurrencyChange();
+  showToast(`💱 Set to ${code} at rate ${rate}`);
+}
+
+/* ── Toast ── */
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+/* ── Offline Banner ── */
+function dismissBanner() {
+  const b = document.getElementById('offline-banner');
+  if (b) b.remove();
+  sessionStorage.setItem('cc_banner_dismissed', '1');
+}
+if (sessionStorage.getItem('cc_banner_dismissed')) dismissBanner();
+
+/* ── Category → Type population ── */
+document.getElementById('category').addEventListener('change', function() {
+  const cat = this.value;
+  const typeEl = document.getElementById('calc-type');
+  typeEl.innerHTML = '<option value="">— Select Type —</option>';
+  if (cat && TYPES[cat]) {
+    TYPES[cat].forEach(t => {
+      const o = document.createElement('option');
+      o.value = t; o.textContent = t;
+      typeEl.appendChild(o);
+    });
+  }
+  renderDynamicFields();
+  saveData();
+});
+
+document.getElementById('calc-type').addEventListener('change', function() {
+  renderDynamicFields();
+  saveData();
+});
+
+/* ── Dynamic Fields ── */
+function renderDynamicFields() {
+  const cat = document.getElementById('category').value;
+  const type = document.getElementById('calc-type').value;
+  const container = document.getElementById('dynamic-fields');
+
+  if (!cat || !type || !FIELDS[cat] || !FIELDS[cat][type]) {
+    container.innerHTML = '<div class="empty-state" style="min-height:80px;"><p style="font-size:12px;">Select a category and type to see inputs</p></div>';
+    return;
+  }
+
+  const fields = FIELDS[cat][type];
+  const saved = loadData();
+  let html = '';
+
+  fields.forEach(f => {
+    const val = saved[f.id] !== undefined ? saved[f.id] : '';
+    if (f.unit) {
+      html += `<div class="form-group">
+        <label for="${f.id}">${f.label}</label>
+        <div class="input-with-unit">
+          <input type="${f.type}" id="${f.id}" placeholder="${f.placeholder||''}" value="${val}" 
+            aria-label="${f.label}" inputmode="decimal" autocomplete="off">
+          <span class="input-unit">${f.unit}</span>
+        </div>
+      </div>`;
+    } else {
+      html += `<div class="form-group">
+        <label for="${f.id}">${f.label}</label>
+        <input type="${f.type}" id="${f.id}" placeholder="${f.placeholder||''}" value="${val}"
+          aria-label="${f.label}" inputmode="decimal" autocomplete="off">
+      </div>`;
+    }
+  });
+
+  container.innerHTML = html;
+
+  // Attach change listeners
+  fields.forEach(f => {
+    const el = document.getElementById(f.id);
+    if (el) el.addEventListener('input', debounce(saveData, 400));
+  });
+}
+
+/* ── Compute Results ── */
+function computeResults(cat, type) {
+  const v = id => {
+    const el = document.getElementById(id);
+    return el ? parseFloat(el.value) || 0 : 0;
+  };
+
+  let results = { kpis: [], breakdown: [], tableRows: [], tableLabel: 'Breakdown Summary' };
+
+  if (cat === 'revenue') {
+    if (type === 'Monthly Recurring') {
+      const rate = v('mrr_rate'), cust = v('mrr_customers'), churn = v('mrr_churn')/100, growth = v('mrr_growth')/100;
+      const mrr = rate * cust;
+      const arr = mrr * 12;
+      const netNewCust = cust * growth;
+      const churnedCust = cust * churn;
+      const ltv = churn > 0 ? rate / churn : 0;
+      results.kpis = [
+        {label:'MRR', value: fmt(mrr), sub:'Monthly Recurring Revenue', highlight:true},
+        {label:'ARR', value: fmt(arr), sub:'Annual Run Rate'},
+        {label:'Net New Customers', value: fmtN(netNewCust), sub:'Per month at growth rate'},
+        {label:'Churned Customers', value: fmtN(churnedCust), sub:'Per month lost'},
+        {label:'Customer LTV', value: churn > 0 ? fmt(ltv) : '—', sub:'Avg. lifetime value'},
+        {label:'Active Customers', value: fmtN(cust), sub:'Current base'},
+      ];
+      results.breakdown = [
+        {name:'Subscription Revenue', value: fmt(mrr), pct: 100},
+        {name:'Monthly Churn Loss', value: fmt(mrr * churn), pct: Math.min(churn*100, 100)},
+        {name:'Growth Revenue Added', value: fmt(mrr * growth), pct: Math.min(growth*100, 100)},
+      ];
+      results.tableRows = [
+        {group:'Revenue', metric:'MRR', value: fmt(mrr), pct: '100%'},
+        {group:'Revenue', metric:'ARR', value: fmt(arr), pct: '—'},
+        {group:'Churn', metric:'Churn Rate', value: fmtPct(churn*100), pct: '—'},
+        {group:'Churn', metric:'Churned MRR', value: fmt(mrr * churn), pct: fmtPct(churn*100)},
+        {group:'Growth', metric:'Growth Rate', value: fmtPct(growth*100), pct: '—'},
+        {group:'Growth', metric:'New MRR', value: fmt(mrr * growth), pct: fmtPct(growth*100)},
+      ];
+    } else if (type === 'Annual Projection') {
+      const q1=v('ap_q1'),q2=v('ap_q2'),q3=v('ap_q3'),q4=v('ap_q4');
+      const total = q1+q2+q3+q4;
+      results.kpis = [
+        {label:'Annual Total', value: fmt(total), highlight:true},
+        {label:'Q1', value: fmt(q1), sub: total>0?fmtPct(q1/total*100)+' of total':''},
+        {label:'Q2', value: fmt(q2), sub: total>0?fmtPct(q2/total*100)+' of total':''},
+        {label:'Q3', value: fmt(q3), sub: total>0?fmtPct(q3/total*100)+' of total':''},
+        {label:'Q4', value: fmt(q4), sub: total>0?fmtPct(q4/total*100)+' of total':''},
+        {label:'Avg per Quarter', value: fmt(total/4)},
+      ];
+      results.breakdown = [
+        {name:'Q1', value: fmt(q1), pct: total>0 ? q1/total*100 : 0},
+        {name:'Q2', value: fmt(q2), pct: total>0 ? q2/total*100 : 0},
+        {name:'Q3', value: fmt(q3), pct: total>0 ? q3/total*100 : 0},
+        {name:'Q4', value: fmt(q4), pct: total>0 ? q4/total*100 : 0},
+      ];
+      results.tableRows = [
+        {group:'Quarters', metric:'Q1', value: fmt(q1), pct: total>0?fmtPct(q1/total*100):'—'},
+        {group:'Quarters', metric:'Q2', value: fmt(q2), pct: total>0?fmtPct(q2/total*100):'—'},
+        {group:'Quarters', metric:'Q3', value: fmt(q3), pct: total>0?fmtPct(q3/total*100):'—'},
+        {group:'Quarters', metric:'Q4', value: fmt(q4), pct: total>0?fmtPct(q4/total*100):'—'},
+        {group:'Total', metric:'Annual Revenue', value: fmt(total), pct: '100%'},
+      ];
+    } else if (type === 'Per Unit Revenue') {
+      const price=v('pu_price'), units=v('pu_units'), cogs=v('pu_cogs'), overhead=v('pu_overhead');
+      const revenue = price * units;
+      const totalCogs = cogs * units;
+      const grossProfit = revenue - totalCogs;
+      const netProfit = grossProfit - overhead;
+      const margin = revenue > 0 ? grossProfit/revenue*100 : 0;
+      results.kpis = [
+        {label:'Total Revenue', value: fmt(revenue), highlight:true},
+        {label:'Gross Profit', value: fmt(grossProfit), sub: fmtPct(margin)+' margin'},
+        {label:'Net Profit', value: fmt(netProfit), sub:'After overhead'},
+        {label:'Units Sold', value: fmtN(units)},
+        {label:'Revenue / Unit', value: fmt(price)},
+        {label:'Profit / Unit', value: fmt(grossProfit/Math.max(units,1))},
+      ];
+      results.breakdown = [
+        {name:'Revenue', value: fmt(revenue), pct: 100},
+        {name:'COGS', value: fmt(totalCogs), pct: revenue>0?totalCogs/revenue*100:0},
+        {name:'Overhead', value: fmt(overhead), pct: revenue>0?overhead/revenue*100:0},
+        {name:'Net Profit', value: fmt(netProfit), pct: revenue>0?Math.max(netProfit/revenue*100,0):0},
+      ];
+      results.tableRows = [
+        {group:'Income', metric:'Total Revenue', value: fmt(revenue), pct: '100%'},
+        {group:'Costs', metric:'Total COGS', value: fmt(totalCogs), pct: revenue>0?fmtPct(totalCogs/revenue*100):'—'},
+        {group:'Costs', metric:'Overhead', value: fmt(overhead), pct: revenue>0?fmtPct(overhead/revenue*100):'—'},
+        {group:'Profit', metric:'Gross Profit', value: fmt(grossProfit), pct: fmtPct(margin)},
+        {group:'Profit', metric:'Net Profit', value: fmt(netProfit), pct: revenue>0?fmtPct(netProfit/revenue*100):'—'},
+      ];
+    } else {
+      const monthly = v('sub_monthly'), annual = v('sub_annual');
+      const mPrice = v('sub_m_price'), aPrice = v('sub_a_price');
+      const mRevenue = monthly * mPrice;
+      const aRevenue = annual * aPrice;
+      const total = mRevenue + aRevenue;
+      results.kpis = [
+        {label:'Total MRR', value: fmt(total), highlight:true, sub:'Combined monthly equivalent'},
+        {label:'Monthly Sub Revenue', value: fmt(mRevenue), sub: fmtN(monthly)+' subscribers'},
+        {label:'Annual Sub Revenue', value: fmt(aRevenue/12)+'/mo', sub: fmtN(annual)+' subscribers'},
+        {label:'ARR', value: fmt(total*12), sub:'Annual run rate'},
+        {label:'Avg Revenue/Subscriber', value: fmt(total/Math.max(monthly+annual,1))},
+        {label:'Total Subscribers', value: fmtN(monthly+annual)},
+      ];
+      results.breakdown = [
+        {name:'Monthly Plans', value: fmt(mRevenue), pct: total>0?mRevenue/total*100:0},
+        {name:'Annual Plans', value: fmt(aRevenue/12), pct: total>0?(aRevenue/12)/total*100:0},
+      ];
+      results.tableRows = [
+        {group:'Monthly', metric:'Subscribers', value: fmtN(monthly), pct: total>0?fmtPct(mRevenue/total*100):'—'},
+        {group:'Monthly', metric:'Revenue', value: fmt(mRevenue), pct: '—'},
+        {group:'Annual', metric:'Subscribers', value: fmtN(annual), pct: total>0?fmtPct((aRevenue/12)/total*100):'—'},
+        {group:'Annual', metric:'Revenue (monthly eq.)', value: fmt(aRevenue/12), pct: '—'},
+        {group:'Total', metric:'Combined MRR', value: fmt(total), pct: '100%'},
+      ];
+    }
+  }
+  else if (cat === 'expenses') {
+    if (type === 'Fixed vs Variable') {
+      const fixed=v('fv_fixed'), vcpu=v('fv_variable'), units=v('fv_units'), revenue=v('fv_revenue');
+      const totalVariable = vcpu * units;
+      const totalCosts = fixed + totalVariable;
+      const contribution = revenue - totalVariable;
+      const profit = revenue - totalCosts;
+      results.kpis = [
+        {label:'Total Costs', value: fmt(totalCosts), highlight:true},
+        {label:'Fixed Costs', value: fmt(fixed), sub: totalCosts>0?fmtPct(fixed/totalCosts*100)+' of total':''},
+        {label:'Total Variable', value: fmt(totalVariable), sub: totalCosts>0?fmtPct(totalVariable/totalCosts*100)+' of total':''},
+        {label:'Contribution Margin', value: fmt(contribution)},
+        {label:'Net Profit', value: fmt(profit)},
+        {label:'Profit Margin', value: revenue>0?fmtPct(profit/revenue*100):'—'},
+      ];
+      results.breakdown = [
+        {name:'Fixed Costs', value: fmt(fixed), pct: totalCosts>0?fixed/totalCosts*100:50},
+        {name:'Variable Costs', value: fmt(totalVariable), pct: totalCosts>0?totalVariable/totalCosts*100:50},
+      ];
+      results.tableRows = [
+        {group:'Costs', metric:'Fixed Costs', value: fmt(fixed), pct: totalCosts>0?fmtPct(fixed/totalCosts*100):'—'},
+        {group:'Costs', metric:'Variable Costs', value: fmt(totalVariable), pct: totalCosts>0?fmtPct(totalVariable/totalCosts*100):'—'},
+        {group:'Costs', metric:'Total Costs', value: fmt(totalCosts), pct: '100%'},
+        {group:'Profit', metric:'Revenue', value: fmt(revenue), pct: '—'},
+        {group:'Profit', metric:'Net Profit', value: fmt(profit), pct: revenue>0?fmtPct(profit/revenue*100):'—'},
+      ];
+    } else if (type === 'Monthly Overhead') {
+      const rent=v('mo_rent'), util=v('mo_utilities'), sal=v('mo_salaries'), other=v('mo_other');
+      const total = rent+util+sal+other;
+      results.kpis = [
+        {label:'Total Overhead', value: fmt(total), highlight:true},
+        {label:'Rent / Lease', value: fmt(rent), sub: total>0?fmtPct(rent/total*100):''},
+        {label:'Utilities', value: fmt(util), sub: total>0?fmtPct(util/total*100):''},
+        {label:'Salaries', value: fmt(sal), sub: total>0?fmtPct(sal/total*100):''},
+        {label:'Other', value: fmt(other)},
+        {label:'Annual Overhead', value: fmt(total*12)},
+      ];
+      results.breakdown = [
+        {name:'Rent / Lease', value: fmt(rent), pct: total>0?rent/total*100:0},
+        {name:'Utilities', value: fmt(util), pct: total>0?util/total*100:0},
+        {name:'Salaries', value: fmt(sal), pct: total>0?sal/total*100:0},
+        {name:'Other', value: fmt(other), pct: total>0?other/total*100:0},
+      ];
+      results.tableRows = [
+        {group:'Overhead', metric:'Rent/Lease', value: fmt(rent), pct: total>0?fmtPct(rent/total*100):'—'},
+        {group:'Overhead', metric:'Utilities', value: fmt(util), pct: total>0?fmtPct(util/total*100):'—'},
+        {group:'Overhead', metric:'Salaries', value: fmt(sal), pct: total>0?fmtPct(sal/total*100):'—'},
+        {group:'Overhead', metric:'Other', value: fmt(other), pct: total>0?fmtPct(other/total*100):'—'},
+        {group:'Total', metric:'Monthly Overhead', value: fmt(total), pct: '100%'},
+        {group:'Total', metric:'Annual Overhead', value: fmt(total*12), pct: '—'},
+      ];
+    } else if (type === 'Cost of Goods Sold') {
+      const mat=v('cogs_material'), labor=v('cogs_labor'), oh=v('cogs_overhead'), units=v('cogs_units');
+      const total = mat+labor+oh;
+      const perUnit = units > 0 ? total/units : 0;
+      results.kpis = [
+        {label:'Total COGS', value: fmt(total), highlight:true},
+        {label:'Materials', value: fmt(mat), sub: total>0?fmtPct(mat/total*100):''},
+        {label:'Direct Labor', value: fmt(labor), sub: total>0?fmtPct(labor/total*100):''},
+        {label:'Overhead', value: fmt(oh), sub: total>0?fmtPct(oh/total*100):''},
+        {label:'Units Produced', value: fmtN(units)},
+        {label:'Cost per Unit', value: fmt(perUnit)},
+      ];
+      results.breakdown = [
+        {name:'Materials', value: fmt(mat), pct: total>0?mat/total*100:0},
+        {name:'Direct Labor', value: fmt(labor), pct: total>0?labor/total*100:0},
+        {name:'Overhead', value: fmt(oh), pct: total>0?oh/total*100:0},
+      ];
+      results.tableRows = [
+        {group:'COGS', metric:'Raw Materials', value: fmt(mat), pct: total>0?fmtPct(mat/total*100):'—'},
+        {group:'COGS', metric:'Direct Labor', value: fmt(labor), pct: total>0?fmtPct(labor/total*100):'—'},
+        {group:'COGS', metric:'Mfg Overhead', value: fmt(oh), pct: total>0?fmtPct(oh/total*100):'—'},
+        {group:'Total', metric:'Total COGS', value: fmt(total), pct: '100%'},
+        {group:'Total', metric:'COGS per Unit', value: fmt(perUnit), pct: '—'},
+      ];
+    } else {
+      const mkt=v('op_marketing'), adm=v('op_admin'), rd=v('op_rd'), other=v('op_other');
+      const total = mkt+adm+rd+other;
+      results.kpis = [
+        {label:'Total OpEx', value: fmt(total), highlight:true},
+        {label:'Marketing', value: fmt(mkt)},
+        {label:'Admin / G&A', value: fmt(adm)},
+        {label:'R&D', value: fmt(rd)},
+        {label:'Other', value: fmt(other)},
+        {label:'Annual OpEx', value: fmt(total*12)},
+      ];
+      results.breakdown = [
+        {name:'Marketing', value: fmt(mkt), pct: total>0?mkt/total*100:0},
+        {name:'Admin/G&A', value: fmt(adm), pct: total>0?adm/total*100:0},
+        {name:'R&D', value: fmt(rd), pct: total>0?rd/total*100:0},
+        {name:'Other', value: fmt(other), pct: total>0?other/total*100:0},
+      ];
+      results.tableRows = [
+        {group:'OpEx', metric:'Marketing', value: fmt(mkt), pct: total>0?fmtPct(mkt/total*100):'—'},
+        {group:'OpEx', metric:'Admin/G&A', value: fmt(adm), pct: total>0?fmtPct(adm/total*100):'—'},
+        {group:'OpEx', metric:'R&D', value: fmt(rd), pct: total>0?fmtPct(rd/total*100):'—'},
+        {group:'OpEx', metric:'Other', value: fmt(other), pct: total>0?fmtPct(other/total*100):'—'},
+        {group:'Total', metric:'Total OpEx', value: fmt(total), pct: '100%'},
+      ];
+    }
+  }
+  else if (cat === 'profit') {
+    if (type === 'Gross Profit Margin') {
+      const rev=v('gp_revenue'), cogs=v('gp_cogs');
+      const gross = rev - cogs;
+      const margin = rev > 0 ? gross/rev*100 : 0;
+      results.kpis = [
+        {label:'Gross Profit', value: fmt(gross), highlight:true},
+        {label:'Gross Margin', value: fmtPct(margin), sub:'Target: >40%'},
+        {label:'Revenue', value: fmt(rev)},
+        {label:'COGS', value: fmt(cogs)},
+        {label:'COGS Ratio', value: rev>0?fmtPct(cogs/rev*100):'—'},
+        {label:'Monthly Equivalent', value: fmt(gross/12)},
+      ];
+      results.breakdown = [
+        {name:'Gross Profit', value: fmt(gross), pct: margin},
+        {name:'COGS', value: fmt(cogs), pct: rev>0?cogs/rev*100:0},
+      ];
+      results.tableRows = [
+        {group:'Revenue', metric:'Total Revenue', value: fmt(rev), pct: '100%'},
+        {group:'Costs', metric:'COGS', value: fmt(cogs), pct: rev>0?fmtPct(cogs/rev*100):'—'},
+        {group:'Profit', metric:'Gross Profit', value: fmt(gross), pct: fmtPct(margin)},
+      ];
+    } else if (type === 'Net Profit Margin') {
+      const rev=v('np_revenue'), exp=v('np_expenses');
+      const net = rev - exp;
+      const margin = rev > 0 ? net/rev*100 : 0;
+      results.kpis = [
+        {label:'Net Profit', value: fmt(net), highlight:true},
+        {label:'Net Margin', value: fmtPct(margin), sub:'Target: >10%'},
+        {label:'Revenue', value: fmt(rev)},
+        {label:'Total Expenses', value: fmt(exp)},
+        {label:'Expense Ratio', value: rev>0?fmtPct(exp/rev*100):'—'},
+        {label:'Monthly Net', value: fmt(net/12)},
+      ];
+      results.breakdown = [
+        {name:'Net Profit', value: fmt(net), pct: Math.max(margin, 0)},
+        {name:'Expenses', value: fmt(exp), pct: rev>0?exp/rev*100:0},
+      ];
+      results.tableRows = [
+        {group:'Income', metric:'Revenue', value: fmt(rev), pct: '100%'},
+        {group:'Costs', metric:'Expenses', value: fmt(exp), pct: rev>0?fmtPct(exp/rev*100):'—'},
+        {group:'Profit', metric:'Net Profit', value: fmt(net), pct: fmtPct(margin)},
+      ];
+    } else if (type === 'Operating Margin') {
+      const rev=v('om_revenue'), cogs=v('om_cogs'), opex=v('om_opex');
+      const gross = rev - cogs;
+      const ebit = gross - opex;
+      const opMargin = rev > 0 ? ebit/rev*100 : 0;
+      results.kpis = [
+        {label:'Operating Income', value: fmt(ebit), highlight:true},
+        {label:'Operating Margin', value: fmtPct(opMargin), sub:'Target: >15%'},
+        {label:'Gross Profit', value: fmt(gross)},
+        {label:'Gross Margin', value: rev>0?fmtPct(gross/rev*100):'—'},
+        {label:'Operating Expenses', value: fmt(opex)},
+        {label:'Revenue', value: fmt(rev)},
+      ];
+      results.breakdown = [
+        {name:'COGS', value: fmt(cogs), pct: rev>0?cogs/rev*100:0},
+        {name:'Operating Expenses', value: fmt(opex), pct: rev>0?opex/rev*100:0},
+        {name:'Operating Profit', value: fmt(ebit), pct: Math.max(opMargin,0)},
+      ];
+      results.tableRows = [
+        {group:'Revenue', metric:'Revenue', value: fmt(rev), pct: '100%'},
+        {group:'Costs', metric:'COGS', value: fmt(cogs), pct: rev>0?fmtPct(cogs/rev*100):'—'},
+        {group:'Costs', metric:'OpEx', value: fmt(opex), pct: rev>0?fmtPct(opex/rev*100):'—'},
+        {group:'Profit', metric:'Gross Profit', value: fmt(gross), pct: rev>0?fmtPct(gross/rev*100):'—'},
+        {group:'Profit', metric:'Operating Income (EBIT)', value: fmt(ebit), pct: fmtPct(opMargin)},
+      ];
+    } else {
+      const rev=v('eb_revenue'), net=v('eb_net'), tax=v('eb_tax'), da=v('eb_da');
+      const ebitda = net + tax + da;
+      const margin = rev > 0 ? ebitda/rev*100 : 0;
+      results.kpis = [
+        {label:'EBITDA', value: fmt(ebitda), highlight:true},
+        {label:'EBITDA Margin', value: fmtPct(margin), sub:'Target: >20%'},
+        {label:'Revenue', value: fmt(rev)},
+        {label:'Net Income', value: fmt(net)},
+        {label:'Taxes', value: fmt(tax)},
+        {label:'D&A', value: fmt(da)},
+      ];
+      results.breakdown = [
+        {name:'Net Income', value: fmt(net), pct: ebitda>0?net/ebitda*100:0},
+        {name:'Taxes Added Back', value: fmt(tax), pct: ebitda>0?tax/ebitda*100:0},
+        {name:'D&A Added Back', value: fmt(da), pct: ebitda>0?da/ebitda*100:0},
+      ];
+      results.tableRows = [
+        {group:'Start', metric:'Net Income', value: fmt(net), pct: '—'},
+        {group:'Add Backs', metric:'Taxes', value: fmt(tax), pct: '—'},
+        {group:'Add Backs', metric:'D&A', value: fmt(da), pct: '—'},
+        {group:'Result', metric:'EBITDA', value: fmt(ebitda), pct: fmtPct(margin)+' margin'},
+      ];
+    }
+  }
+  else if (cat === 'roi') {
+    if (type === 'Simple ROI') {
+      const gain=v('roi_gain'), cost=v('roi_cost');
+      const roi = cost > 0 ? gain/cost*100 : 0;
+      const multiple = cost > 0 ? (gain+cost)/cost : 0;
+      results.kpis = [
+        {label:'ROI', value: fmtPct(roi), highlight:true, sub: roi>=0 ? '▲ Positive' : '▼ Negative'},
+        {label:'Net Profit', value: fmt(gain)},
+        {label:'Investment', value: fmt(cost)},
+        {label:'Money Multiple', value: fmtN(multiple)+'x'},
+        {label:'Return per $1', value: '$'+fmtN(gain/Math.max(cost,1))},
+        {label:'Total Value', value: fmt(gain+cost)},
+      ];
+      results.breakdown = [
+        {name:'Initial Investment', value: fmt(cost), pct: 100},
+        {name:'Net Profit', value: fmt(gain), pct: Math.min(Math.abs(roi), 100)},
+      ];
+      results.tableRows = [
+        {group:'Investment', metric:'Cost Invested', value: fmt(cost), pct: '—'},
+        {group:'Return', metric:'Net Profit', value: fmt(gain), pct: '—'},
+        {group:'Result', metric:'ROI', value: fmtPct(roi), pct: '—'},
+        {group:'Result', metric:'Money Multiple', value: fmtN(multiple)+'x', pct: '—'},
+      ];
+    } else if (type === 'Annualised ROI') {
+      const gain=v('aroi_gain'), cost=v('aroi_cost'), years=v('aroi_years');
+      const roi = cost > 0 ? gain/cost*100 : 0;
+      const annualRoi = years > 0 ? (Math.pow(1 + roi/100, 1/years) - 1)*100 : roi;
+      results.kpis = [
+        {label:'Total ROI', value: fmtPct(roi), highlight:true},
+        {label:'Annualised ROI', value: fmtPct(annualRoi), sub: 'Per year'},
+        {label:'Net Profit', value: fmt(gain)},
+        {label:'Investment', value: fmt(cost)},
+        {label:'Holding Period', value: fmtN(years)+' yrs'},
+        {label:'Total Return', value: fmt(gain+cost)},
+      ];
+      results.breakdown = [
+        {name:'Investment', value: fmt(cost), pct: 100},
+        {name:'Return', value: fmt(gain), pct: Math.min(Math.abs(roi), 100)},
+      ];
+      results.tableRows = [
+        {group:'Inputs', metric:'Investment', value: fmt(cost), pct: '—'},
+        {group:'Inputs', metric:'Net Profit', value: fmt(gain), pct: '—'},
+        {group:'Inputs', metric:'Years', value: fmtN(years), pct: '—'},
+        {group:'Results', metric:'Total ROI', value: fmtPct(roi), pct: '—'},
+        {group:'Results', metric:'Annualised ROI', value: fmtPct(annualRoi), pct: '—'},
+      ];
+    } else if (type === 'Marketing ROI') {
+      const rev=v('mroi_revenue'), spend=v('mroi_spend'), cogs=v('mroi_cogs');
+      const grossProfit = rev - cogs;
+      const mroi = spend > 0 ? (grossProfit - spend)/spend*100 : 0;
+      const roas = spend > 0 ? rev/spend : 0;
+      results.kpis = [
+        {label:'Marketing ROI', value: fmtPct(mroi), highlight:true},
+        {label:'ROAS', value: fmtN(roas)+'x', sub:'Revenue per $1 spent'},
+        {label:'Revenue', value: fmt(rev)},
+        {label:'Gross Profit', value: fmt(grossProfit)},
+        {label:'Marketing Spend', value: fmt(spend)},
+        {label:'Net from Campaign', value: fmt(grossProfit - spend)},
+      ];
+      results.breakdown = [
+        {name:'Revenue', value: fmt(rev), pct: 100},
+        {name:'COGS', value: fmt(cogs), pct: rev>0?cogs/rev*100:0},
+        {name:'Marketing Spend', value: fmt(spend), pct: rev>0?spend/rev*100:0},
+        {name:'Net Profit', value: fmt(grossProfit-spend), pct: rev>0?Math.max((grossProfit-spend)/rev*100,0):0},
+      ];
+      results.tableRows = [
+        {group:'Campaign', metric:'Revenue', value: fmt(rev), pct: '100%'},
+        {group:'Campaign', metric:'COGS', value: fmt(cogs), pct: rev>0?fmtPct(cogs/rev*100):'—'},
+        {group:'Campaign', metric:'Marketing Spend', value: fmt(spend), pct: rev>0?fmtPct(spend/rev*100):'—'},
+        {group:'Result', metric:'ROAS', value: fmtN(roas)+'x', pct: '—'},
+        {group:'Result', metric:'Marketing ROI', value: fmtPct(mroi), pct: '—'},
+      ];
+    } else {
+      const benefit=v('proi_benefit'), cost=v('proi_cost'), months=v('proi_months');
+      const net = benefit - cost;
+      const roi = cost > 0 ? net/cost*100 : 0;
+      const monthlyReturn = months > 0 ? net/months : 0;
+      results.kpis = [
+        {label:'Project ROI', value: fmtPct(roi), highlight:true},
+        {label:'Net Benefit', value: fmt(net)},
+        {label:'Total Benefits', value: fmt(benefit)},
+        {label:'Project Costs', value: fmt(cost)},
+        {label:'Monthly Return', value: fmt(monthlyReturn)},
+        {label:'Payback Period', value: monthlyReturn > 0 ? fmtN(cost/monthlyReturn)+' mo' : '—'},
+      ];
+      results.breakdown = [
+        {name:'Benefits', value: fmt(benefit), pct: 100},
+        {name:'Costs', value: fmt(cost), pct: benefit>0?cost/benefit*100:0},
+        {name:'Net Gain', value: fmt(net), pct: benefit>0?Math.max(net/benefit*100,0):0},
+      ];
+      results.tableRows = [
+        {group:'Project', metric:'Benefits', value: fmt(benefit), pct: '—'},
+        {group:'Project', metric:'Costs', value: fmt(cost), pct: '—'},
+        {group:'Project', metric:'Duration', value: fmtN(months)+' mo', pct: '—'},
+        {group:'Result', metric:'Net Benefit', value: fmt(net), pct: '—'},
+        {group:'Result', metric:'ROI', value: fmtPct(roi), pct: '—'},
+        {group:'Result', metric:'Payback', value: monthlyReturn>0?fmtN(cost/monthlyReturn)+' mo':'—', pct: '—'},
+      ];
+    }
+  }
+  else if (cat === 'tax') {
+    if (type === 'Income Tax Estimate') {
+      const income=v('it_income'), ded=v('it_deductions'), rate=v('it_rate')/100;
+      const taxable = Math.max(income - ded, 0);
+      const tax = taxable * rate;
+      const afterTax = income - tax;
+      results.kpis = [
+        {label:'Est. Tax Owed', value: fmt(tax), highlight:true},
+        {label:'Taxable Income', value: fmt(taxable)},
+        {label:'Effective Rate', value: income>0?fmtPct(tax/income*100):'—', sub:'On gross income'},
+        {label:'After-Tax Income', value: fmt(afterTax)},
+        {label:'Deductions', value: fmt(ded)},
+        {label:'Monthly Tax', value: fmt(tax/12)},
+      ];
+      results.breakdown = [
+        {name:'After-Tax Income', value: fmt(afterTax), pct: income>0?afterTax/income*100:0},
+        {name:'Tax Owed', value: fmt(tax), pct: income>0?tax/income*100:0},
+        {name:'Deductions', value: fmt(ded), pct: income>0?ded/income*100:0},
+      ];
+      results.tableRows = [
+        {group:'Income', metric:'Gross Income', value: fmt(income), pct: '100%'},
+        {group:'Deductions', metric:'Deductions', value: fmt(ded), pct: income>0?fmtPct(ded/income*100):'—'},
+        {group:'Tax', metric:'Taxable Income', value: fmt(taxable), pct: '—'},
+        {group:'Tax', metric:'Tax Rate', value: fmtPct(rate*100), pct: '—'},
+        {group:'Tax', metric:'Tax Owed', value: fmt(tax), pct: income>0?fmtPct(tax/income*100):'—'},
+        {group:'Result', metric:'After-Tax Income', value: fmt(afterTax), pct: income>0?fmtPct(afterTax/income*100):'—'},
+      ];
+    } else if (type === 'Corporate Tax') {
+      const profit=v('ct_profit'), rate=v('ct_rate')/100, credits=v('ct_credits');
+      const taxBeforeCredits = profit * rate;
+      const tax = Math.max(taxBeforeCredits - credits, 0);
+      const afterTax = profit - tax;
+      results.kpis = [
+        {label:'Corporate Tax', value: fmt(tax), highlight:true},
+        {label:'After-Tax Profit', value: fmt(afterTax)},
+        {label:'Pre-Tax Profit', value: fmt(profit)},
+        {label:'Effective Rate', value: profit>0?fmtPct(tax/profit*100):'—'},
+        {label:'Tax Credits', value: fmt(credits)},
+        {label:'Monthly Tax', value: fmt(tax/12)},
+      ];
+      results.breakdown = [
+        {name:'After-Tax Profit', value: fmt(afterTax), pct: profit>0?afterTax/profit*100:0},
+        {name:'Tax Owed', value: fmt(tax), pct: profit>0?tax/profit*100:0},
+        {name:'Credits Applied', value: fmt(credits), pct: profit>0?credits/profit*100:0},
+      ];
+      results.tableRows = [
+        {group:'Profit', metric:'Pre-Tax Profit', value: fmt(profit), pct: '100%'},
+        {group:'Tax', metric:'Tax Rate', value: fmtPct(rate*100), pct: '—'},
+        {group:'Tax', metric:'Tax Before Credits', value: fmt(taxBeforeCredits), pct: '—'},
+        {group:'Tax', metric:'Credits', value: fmt(credits), pct: '—'},
+        {group:'Result', metric:'Tax Owed', value: fmt(tax), pct: profit>0?fmtPct(tax/profit*100):'—'},
+        {group:'Result', metric:'After-Tax Profit', value: fmt(afterTax), pct: profit>0?fmtPct(afterTax/profit*100):'—'},
+      ];
+    } else if (type === 'Sales Tax') {
+      const price=v('st_price'), qty=v('st_qty'), rate=v('st_rate')/100;
+      const subtotal = price * qty;
+      const salesTax = subtotal * rate;
+      const total = subtotal + salesTax;
+      results.kpis = [
+        {label:'Total Sales Tax', value: fmt(salesTax), highlight:true},
+        {label:'Grand Total', value: fmt(total)},
+        {label:'Subtotal', value: fmt(subtotal)},
+        {label:'Tax Rate', value: fmtPct(rate*100)},
+        {label:'Tax per Unit', value: fmt(price * rate)},
+        {label:'Units Sold', value: fmtN(qty)},
+      ];
+      results.breakdown = [
+        {name:'Product Revenue', value: fmt(subtotal), pct: total>0?subtotal/total*100:0},
+        {name:'Sales Tax', value: fmt(salesTax), pct: total>0?salesTax/total*100:0},
+      ];
+      results.tableRows = [
+        {group:'Sales', metric:'Unit Price', value: fmt(price), pct: '—'},
+        {group:'Sales', metric:'Units', value: fmtN(qty), pct: '—'},
+        {group:'Sales', metric:'Subtotal', value: fmt(subtotal), pct: '100%'},
+        {group:'Tax', metric:'Tax Rate', value: fmtPct(rate*100), pct: '—'},
+        {group:'Tax', metric:'Sales Tax', value: fmt(salesTax), pct: fmtPct(salesTax/total*100)},
+        {group:'Total', metric:'Grand Total', value: fmt(total), pct: '—'},
+      ];
+    } else {
+      const income=v('se_income');
+      const seTax = income * 0.9235 * 0.153;
+      const deductible = seTax / 2;
+      const effective = income > 0 ? seTax/income*100 : 0;
+      results.kpis = [
+        {label:'SE Tax Owed', value: fmt(seTax), highlight:true, sub:'15.3% rate'},
+        {label:'Net SE Income', value: fmt(income * 0.9235)},
+        {label:'Deductible Portion', value: fmt(deductible), sub:'Half is deductible'},
+        {label:'Effective Rate', value: fmtPct(effective)},
+        {label:'Quarterly Payment', value: fmt(seTax/4)},
+        {label:'Monthly Equivalent', value: fmt(seTax/12)},
+      ];
+      results.breakdown = [
+        {name:'Social Security (12.4%)', value: fmt(income*0.9235*0.124), pct: 12.4/15.3*100},
+        {name:'Medicare (2.9%)', value: fmt(income*0.9235*0.029), pct: 2.9/15.3*100},
+      ];
+      results.tableRows = [
+        {group:'SE Tax', metric:'Gross Income', value: fmt(income), pct: '100%'},
+        {group:'SE Tax', metric:'Adjustment (92.35%)', value: fmt(income*0.9235), pct: '92.35%'},
+        {group:'SE Tax', metric:'Social Security', value: fmt(income*0.9235*0.124), pct: '12.4%'},
+        {group:'SE Tax', metric:'Medicare', value: fmt(income*0.9235*0.029), pct: '2.9%'},
+        {group:'Result', metric:'Total SE Tax', value: fmt(seTax), pct: fmtPct(effective)},
+        {group:'Result', metric:'Deductible Half', value: fmt(deductible), pct: '—'},
+      ];
+    }
+  }
+  else if (cat === 'breakeven') {
+    if (type === 'Units Break-Even') {
+      const fixed=v('be_fixed'), price=v('be_price'), vcpu=v('be_vcpu');
+      const contrib = price - vcpu;
+      const beUnits = contrib > 0 ? fixed/contrib : 0;
+      const beRevenue = beUnits * price;
+      const margin = price > 0 ? contrib/price*100 : 0;
+      results.kpis = [
+        {label:'Break-Even Units', value: fmtN(Math.ceil(beUnits)), highlight:true},
+        {label:'Break-Even Revenue', value: fmt(beRevenue)},
+        {label:'Contribution Margin', value: fmt(contrib), sub: fmtPct(margin)+' per unit'},
+        {label:'Fixed Costs', value: fmt(fixed)},
+        {label:'Selling Price', value: fmt(price)},
+        {label:'Variable Cost/Unit', value: fmt(vcpu)},
+      ];
+      results.breakdown = [
+        {name:'Fixed Costs', value: fmt(fixed), pct: 100},
+        {name:'Variable Costs at BEP', value: fmt(vcpu * beUnits), pct: price>0?vcpu/price*100:0},
+        {name:'Contribution / Unit', value: fmt(contrib), pct: margin},
+      ];
+      results.tableRows = [
+        {group:'Costs', metric:'Fixed Costs', value: fmt(fixed), pct: '—'},
+        {group:'Costs', metric:'Variable Cost/Unit', value: fmt(vcpu), pct: price>0?fmtPct(vcpu/price*100):'—'},
+        {group:'Revenue', metric:'Selling Price/Unit', value: fmt(price), pct: '100%'},
+        {group:'Revenue', metric:'Contribution Margin', value: fmt(contrib), pct: fmtPct(margin)},
+        {group:'Break-Even', metric:'Units Required', value: fmtN(Math.ceil(beUnits)), pct: '—'},
+        {group:'Break-Even', metric:'Revenue Required', value: fmt(beRevenue), pct: '—'},
+      ];
+    } else if (type === 'Revenue Break-Even') {
+      const fixed=v('brev_fixed'), vcpct=v('brev_vcpct')/100;
+      const beRev = vcpct < 1 ? fixed/(1-vcpct) : 0;
+      const cmRatio = (1-vcpct)*100;
+      results.kpis = [
+        {label:'Break-Even Revenue', value: fmt(beRev), highlight:true},
+        {label:'Contrib. Margin Ratio', value: fmtPct(cmRatio)},
+        {label:'Fixed Costs', value: fmt(fixed)},
+        {label:'Variable Cost %', value: fmtPct(vcpct*100)},
+        {label:'Monthly Break-Even', value: fmt(beRev/12)},
+        {label:'Weekly Break-Even', value: fmt(beRev/52)},
+      ];
+      results.breakdown = [
+        {name:'Fixed Costs', value: fmt(fixed), pct: 100},
+        {name:'Variable Costs (at BEP)', value: fmt(beRev*vcpct), pct: vcpct*100},
+        {name:'Contribution (at BEP)', value: fmt(beRev*cmRatio/100), pct: cmRatio},
+      ];
+      results.tableRows = [
+        {group:'Inputs', metric:'Fixed Costs', value: fmt(fixed), pct: '—'},
+        {group:'Inputs', metric:'Variable Cost %', value: fmtPct(vcpct*100), pct: '—'},
+        {group:'Result', metric:'CM Ratio', value: fmtPct(cmRatio), pct: '—'},
+        {group:'Result', metric:'Annual BEP Revenue', value: fmt(beRev), pct: '—'},
+        {group:'Result', metric:'Monthly BEP Revenue', value: fmt(beRev/12), pct: '—'},
+      ];
+    } else if (type === 'Time to Break-Even') {
+      const fixed=v('bt_fixed'), monthly=v('bt_monthly_contrib');
+      const months = monthly > 0 ? fixed/monthly : 0;
+      const years = months/12;
+      results.kpis = [
+        {label:'Time to Break-Even', value: fmtN(Math.ceil(months))+' mo', highlight:true},
+        {label:'In Years', value: fmtN(years.toFixed(1))+' yrs'},
+        {label:'Fixed Costs', value: fmt(fixed)},
+        {label:'Monthly Contribution', value: fmt(monthly)},
+        {label:'Quarterly Milestones', value: fmt(monthly*3)+'/qtr'},
+        {label:'6-Month Progress', value: monthly>0?fmtPct(Math.min(monthly*6/fixed*100,100)):'—'},
+      ];
+      results.breakdown = [
+        {name:'Monthly Contribution', value: fmt(monthly), pct: 100},
+        {name:'Fixed Costs to Recover', value: fmt(fixed), pct: 100},
+      ];
+      results.tableRows = [
+        {group:'Inputs', metric:'Fixed Costs', value: fmt(fixed), pct: '—'},
+        {group:'Inputs', metric:'Monthly Contribution', value: fmt(monthly), pct: '—'},
+        {group:'Milestones', metric:'Month 3', value: fmt(monthly*3), pct: fixed>0?fmtPct(monthly*3/fixed*100):'—'},
+        {group:'Milestones', metric:'Month 6', value: fmt(monthly*6), pct: fixed>0?fmtPct(monthly*6/fixed*100):'—'},
+        {group:'Result', metric:'Break-Even (months)', value: fmtN(Math.ceil(months))+' mo', pct: '—'},
+      ];
+    } else {
+      const fixed=v('btp_fixed'), price=v('btp_price'), vcpu=v('btp_vcpu'), target=v('btp_target');
+      const contrib = price - vcpu;
+      const beUnits = contrib > 0 ? fixed/contrib : 0;
+      const targetUnits = contrib > 0 ? (fixed+target)/contrib : 0;
+      const targetRevenue = targetUnits * price;
+      results.kpis = [
+        {label:'Units for Target Profit', value: fmtN(Math.ceil(targetUnits)), highlight:true},
+        {label:'Revenue Required', value: fmt(targetRevenue)},
+        {label:'Break-Even Units', value: fmtN(Math.ceil(beUnits)), sub:'Without profit'},
+        {label:'Target Profit', value: fmt(target)},
+        {label:'Extra Units Above BEP', value: fmtN(Math.ceil(targetUnits - beUnits))},
+        {label:'Contribution / Unit', value: fmt(contrib)},
+      ];
+      results.breakdown = [
+        {name:'Fixed Costs Recovery', value: fmt(fixed), pct: (fixed+target)>0?fixed/(fixed+target)*100:0},
+        {name:'Target Profit', value: fmt(target), pct: (fixed+target)>0?target/(fixed+target)*100:0},
+      ];
+      results.tableRows = [
+        {group:'Base', metric:'Fixed Costs', value: fmt(fixed), pct: '—'},
+        {group:'Base', metric:'Break-Even Units', value: fmtN(Math.ceil(beUnits)), pct: '—'},
+        {group:'Target', metric:'Target Profit', value: fmt(target), pct: '—'},
+        {group:'Target', metric:'Units Required', value: fmtN(Math.ceil(targetUnits)), pct: '—'},
+        {group:'Target', metric:'Revenue Required', value: fmt(targetRevenue), pct: '—'},
+      ];
+    }
+  }
+  else if (cat === 'cashflow') {
+    if (type === 'Monthly Cash Flow') {
+      const inflows=v('cf_inflows'), outflows=v('cf_outflows'), opening=v('cf_opening');
+      const net = inflows - outflows;
+      const closing = opening + net;
+      const ratio = outflows > 0 ? inflows/outflows : 0;
+      results.kpis = [
+        {label:'Net Cash Flow', value: fmt(net), highlight:true, sub: net>=0?'▲ Positive':'▼ Negative'},
+        {label:'Closing Balance', value: fmt(closing)},
+        {label:'Total Inflows', value: fmt(inflows)},
+        {label:'Total Outflows', value: fmt(outflows)},
+        {label:'Coverage Ratio', value: fmtN(ratio)+'x'},
+        {label:'Annual Projection', value: fmt(net*12)},
+      ];
+      results.breakdown = [
+        {name:'Cash Inflows', value: fmt(inflows), pct: 100},
+        {name:'Cash Outflows', value: fmt(outflows), pct: inflows>0?outflows/inflows*100:0},
+        {name:'Net Cash Flow', value: fmt(net), pct: inflows>0?Math.max(net/inflows*100,0):0},
+      ];
+      results.tableRows = [
+        {group:'Cash Flow', metric:'Opening Balance', value: fmt(opening), pct: '—'},
+        {group:'Cash Flow', metric:'Total Inflows', value: fmt(inflows), pct: '100%'},
+        {group:'Cash Flow', metric:'Total Outflows', value: fmt(outflows), pct: inflows>0?fmtPct(outflows/inflows*100):'—'},
+        {group:'Result', metric:'Net Cash Flow', value: fmt(net), pct: '—'},
+        {group:'Result', metric:'Closing Balance', value: fmt(closing), pct: '—'},
+      ];
+    } else if (type === 'Operating Cash Flow') {
+      const net=v('ocf_net'), da=v('ocf_da'), wc=v('ocf_wc');
+      const ocf = net + da + wc;
+      results.kpis = [
+        {label:'Operating Cash Flow', value: fmt(ocf), highlight:true},
+        {label:'Net Income', value: fmt(net)},
+        {label:'D&A Add-Back', value: fmt(da)},
+        {label:'Working Capital Δ', value: fmt(wc)},
+        {label:'Annual OCF', value: fmt(ocf*12)},
+        {label:'OCF Margin', value: net!==0?fmtPct(ocf/Math.abs(net)*100):'—'},
+      ];
+      results.breakdown = [
+        {name:'Net Income', value: fmt(net), pct: Math.abs(net+da+wc)>0?Math.abs(net)/(Math.abs(net)+Math.abs(da)+Math.abs(wc))*100:33},
+        {name:'D&A', value: fmt(da), pct: Math.abs(net+da+wc)>0?Math.abs(da)/(Math.abs(net)+Math.abs(da)+Math.abs(wc))*100:33},
+        {name:'Working Capital', value: fmt(wc), pct: Math.abs(net+da+wc)>0?Math.abs(wc)/(Math.abs(net)+Math.abs(da)+Math.abs(wc))*100:33},
+      ];
+      results.tableRows = [
+        {group:'Components', metric:'Net Income', value: fmt(net), pct: '—'},
+        {group:'Components', metric:'+ D&A', value: fmt(da), pct: '—'},
+        {group:'Components', metric:'± Working Capital', value: fmt(wc), pct: '—'},
+        {group:'Result', metric:'Operating Cash Flow', value: fmt(ocf), pct: '—'},
+        {group:'Result', metric:'Annual OCF', value: fmt(ocf*12), pct: '—'},
+      ];
+    } else if (type === 'Free Cash Flow') {
+      const ocf=v('fcf_ocf'), capex=v('fcf_capex');
+      const fcf = ocf - capex;
+      const yield_ = ocf > 0 ? fcf/ocf*100 : 0;
+      results.kpis = [
+        {label:'Free Cash Flow', value: fmt(fcf), highlight:true},
+        {label:'FCF Yield', value: fmtPct(yield_), sub:'FCF / OCF'},
+        {label:'Operating Cash Flow', value: fmt(ocf)},
+        {label:'CapEx', value: fmt(capex)},
+        {label:'Annual FCF', value: fmt(fcf*12)},
+        {label:'CapEx Ratio', value: ocf>0?fmtPct(capex/ocf*100):'—'},
+      ];
+      results.breakdown = [
+        {name:'Operating Cash Flow', value: fmt(ocf), pct: 100},
+        {name:'Capital Expenditures', value: fmt(capex), pct: ocf>0?capex/ocf*100:0},
+        {name:'Free Cash Flow', value: fmt(fcf), pct: ocf>0?Math.max(fcf/ocf*100,0):0},
+      ];
+      results.tableRows = [
+        {group:'Input', metric:'Operating Cash Flow', value: fmt(ocf), pct: '100%'},
+        {group:'Deduct', metric:'Capital Expenditures', value: fmt(capex), pct: ocf>0?fmtPct(capex/ocf*100):'—'},
+        {group:'Result', metric:'Free Cash Flow', value: fmt(fcf), pct: fmtPct(yield_)},
+        {group:'Result', metric:'Annual FCF', value: fmt(fcf*12), pct: '—'},
+      ];
+    } else {
+      const assets=v('wc_current_assets'), liab=v('wc_current_liab');
+      const wc = assets - liab;
+      const ratio = liab > 0 ? assets/liab : 0;
+      results.kpis = [
+        {label:'Working Capital', value: fmt(wc), highlight:true},
+        {label:'Current Ratio', value: fmtN(ratio)+'x', sub: ratio>=2?'Healthy':ratio>=1?'Adequate':'Low'},
+        {label:'Current Assets', value: fmt(assets)},
+        {label:'Current Liabilities', value: fmt(liab)},
+        {label:'Asset Coverage', value: liab>0?fmtPct(assets/liab*100):'—'},
+        {label:'Liquidity Status', value: wc>0?'Positive':'Negative'},
+      ];
+      results.breakdown = [
+        {name:'Current Assets', value: fmt(assets), pct: 100},
+        {name:'Current Liabilities', value: fmt(liab), pct: assets>0?liab/assets*100:0},
+        {name:'Working Capital', value: fmt(wc), pct: assets>0?Math.max(wc/assets*100,0):0},
+      ];
+      results.tableRows = [
+        {group:'Balance Sheet', metric:'Current Assets', value: fmt(assets), pct: '100%'},
+        {group:'Balance Sheet', metric:'Current Liabilities', value: fmt(liab), pct: assets>0?fmtPct(liab/assets*100):'—'},
+        {group:'Result', metric:'Working Capital', value: fmt(wc), pct: '—'},
+        {group:'Result', metric:'Current Ratio', value: fmtN(ratio)+'x', pct: '—'},
+      ];
+    }
+  }
+  else if (cat === 'payroll') {
+    if (type === 'Salary Payroll') {
+      const emp=v('sp_employees'), salary=v('sp_avg_salary'), benPct=v('sp_benefits_pct')/100, taxPct=v('sp_tax_pct')/100;
+      const baseSalary = emp * salary;
+      const benefits = baseSalary * benPct;
+      const payrollTax = baseSalary * taxPct;
+      const total = baseSalary + benefits + payrollTax;
+      results.kpis = [
+        {label:'Total Payroll Cost', value: fmt(total), highlight:true, sub:'Annual'},
+        {label:'Base Salaries', value: fmt(baseSalary)},
+        {label:'Benefits Cost', value: fmt(benefits), sub: fmtPct(benPct*100)+' of salary'},
+        {label:'Payroll Taxes', value: fmt(payrollTax)},
+        {label:'Cost per Employee', value: fmt(total/Math.max(emp,1))},
+        {label:'Monthly Total', value: fmt(total/12)},
+      ];
+      results.breakdown = [
+        {name:'Base Salaries', value: fmt(baseSalary), pct: total>0?baseSalary/total*100:0},
+        {name:'Benefits', value: fmt(benefits), pct: total>0?benefits/total*100:0},
+        {name:'Payroll Taxes', value: fmt(payrollTax), pct: total>0?payrollTax/total*100:0},
+      ];
+      results.tableRows = [
+        {group:'Payroll', metric:'Employees', value: fmtN(emp), pct: '—'},
+        {group:'Payroll', metric:'Avg Salary', value: fmt(salary), pct: '—'},
+        {group:'Payroll', metric:'Base Salaries', value: fmt(baseSalary), pct: total>0?fmtPct(baseSalary/total*100):'—'},
+        {group:'Payroll', metric:'Benefits', value: fmt(benefits), pct: total>0?fmtPct(benefits/total*100):'—'},
+        {group:'Payroll', metric:'Payroll Taxes', value: fmt(payrollTax), pct: total>0?fmtPct(payrollTax/total*100):'—'},
+        {group:'Total', metric:'Annual Payroll', value: fmt(total), pct: '100%'},
+        {group:'Total', metric:'Monthly Payroll', value: fmt(total/12), pct: '—'},
+      ];
+    } else if (type === 'Hourly Payroll') {
+      const emp=v('hp_employees'), rate=v('hp_rate'), hrs=v('hp_hours'), weeks=v('hp_weeks');
+      const perEmpAnnual = rate * hrs * weeks;
+      const total = perEmpAnnual * emp;
+      const weekly = total / Math.max(weeks,1);
+      results.kpis = [
+        {label:'Total Annual Cost', value: fmt(total), highlight:true},
+        {label:'Per Employee/Year', value: fmt(perEmpAnnual)},
+        {label:'Weekly Payroll', value: fmt(weekly)},
+        {label:'Monthly Payroll', value: fmt(total/12)},
+        {label:'Hourly Rate', value: fmt(rate)},
+        {label:'Total Hours/Year', value: fmtN(hrs*weeks*emp)},
+      ];
+      results.breakdown = [
+        {name:'Hourly Rate', value: fmt(rate), pct: 100},
+        {name:'Hours per Week', value: fmtN(hrs)+' hrs', pct: Math.min(hrs/60*100,100)},
+        {name:'Weeks per Year', value: fmtN(weeks)+' wks', pct: Math.min(weeks/52*100,100)},
+      ];
+      results.tableRows = [
+        {group:'Inputs', metric:'Employees', value: fmtN(emp), pct: '—'},
+        {group:'Inputs', metric:'Hourly Rate', value: fmt(rate), pct: '—'},
+        {group:'Inputs', metric:'Hours/Week', value: fmtN(hrs), pct: '—'},
+        {group:'Inputs', metric:'Weeks/Year', value: fmtN(weeks), pct: '—'},
+        {group:'Output', metric:'Annual per Employee', value: fmt(perEmpAnnual), pct: '—'},
+        {group:'Output', metric:'Total Annual', value: fmt(total), pct: '100%'},
+      ];
+    } else if (type === 'Contractor Cost') {
+      const rate=v('cc_rate'), days=v('cc_days'), months=v('cc_months');
+      const monthly = rate * days;
+      const total = monthly * months;
+      const daily = rate;
+      results.kpis = [
+        {label:'Total Contract Cost', value: fmt(total), highlight:true},
+        {label:'Monthly Cost', value: fmt(monthly)},
+        {label:'Daily Rate', value: fmt(daily)},
+        {label:'Working Days', value: fmtN(days*months)+' total'},
+        {label:'Contract Length', value: fmtN(months)+' months'},
+        {label:'Annual Run Rate', value: fmt(monthly*12)},
+      ];
+      results.breakdown = [
+        {name:'Daily Rate', value: fmt(rate), pct: 100},
+        {name:'Days per Month', value: fmtN(days)+' days', pct: Math.min(days/22*100,100)},
+        {name:'Contract Duration', value: fmtN(months)+' mo', pct: Math.min(months/12*100,100)},
+      ];
+      results.tableRows = [
+        {group:'Rate', metric:'Daily Rate', value: fmt(rate), pct: '—'},
+        {group:'Rate', metric:'Days per Month', value: fmtN(days), pct: '—'},
+        {group:'Rate', metric:'Monthly Cost', value: fmt(monthly), pct: '—'},
+        {group:'Total', metric:'Months', value: fmtN(months), pct: '—'},
+        {group:'Total', metric:'Contract Total', value: fmt(total), pct: '100%'},
+      ];
+    } else {
+      const sal=v('tpb_salary'), ben=v('tpb_benefits'), tax=v('tpb_taxes'), other=v('tpb_other');
+      const total = sal+ben+tax+other;
+      results.kpis = [
+        {label:'Total Payroll Budget', value: fmt(total), highlight:true, sub:'Annual'},
+        {label:'Salary Costs', value: fmt(sal), sub: total>0?fmtPct(sal/total*100):''},
+        {label:'Benefits', value: fmt(ben), sub: total>0?fmtPct(ben/total*100):''},
+        {label:'Payroll Taxes', value: fmt(tax), sub: total>0?fmtPct(tax/total*100):''},
+        {label:'Other Costs', value: fmt(other)},
+        {label:'Monthly Budget', value: fmt(total/12)},
+      ];
+      results.breakdown = [
+        {name:'Salaries', value: fmt(sal), pct: total>0?sal/total*100:0},
+        {name:'Benefits', value: fmt(ben), pct: total>0?ben/total*100:0},
+        {name:'Taxes', value: fmt(tax), pct: total>0?tax/total*100:0},
+        {name:'Other', value: fmt(other), pct: total>0?other/total*100:0},
+      ];
+      results.tableRows = [
+        {group:'Payroll', metric:'Salaries', value: fmt(sal), pct: total>0?fmtPct(sal/total*100):'—'},
+        {group:'Payroll', metric:'Benefits', value: fmt(ben), pct: total>0?fmtPct(ben/total*100):'—'},
+        {group:'Payroll', metric:'Payroll Taxes', value: fmt(tax), pct: total>0?fmtPct(tax/total*100):'—'},
+        {group:'Payroll', metric:'Other', value: fmt(other), pct: total>0?fmtPct(other/total*100):'—'},
+        {group:'Total', metric:'Annual Budget', value: fmt(total), pct: '100%'},
+        {group:'Total', metric:'Monthly Budget', value: fmt(total/12), pct: '—'},
+      ];
+    }
+  }
+
+  return results;
+}
+
+/* ── Calculate ── */
+function calculate() {
+  const cat = document.getElementById('category').value;
+  const type = document.getElementById('calc-type').value;
+
+  // Validate
+  let valid = true;
+  document.querySelectorAll('.field-error').forEach(e => e.classList.remove('show'));
+
+  if (!cat) {
+    document.getElementById('err-category').classList.add('show');
+    valid = false;
+  }
+  if (!type) {
+    document.getElementById('err-type').classList.add('show');
+    valid = false;
+  }
+  if (!valid) { showToast('⚠ Please fill all required fields'); return; }
+
+  const results = computeResults(cat, type);
+  lastResults = { cat, type, results };
+  renderResults(cat, type, results);
+  showToast('✓ Calculation complete');
+}
+
+/* ── Render Results ── */
+function renderResults(cat, type, results) {
+  const out = document.getElementById('output-section');
+  const catLabel = document.getElementById('category').options[document.getElementById('category').selectedIndex].text;
+  const now = new Date().toLocaleString('en-US', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+
+  const curActive = curState.enabled && curState.rate > 0 && curState.baseCode !== curState.targetCode;
+  const curLabel = curActive
+    ? `<span style="color:var(--accent);font-size:11px;font-weight:700;background:var(--accent-dim);border:1px solid rgba(126,232,250,0.25);padding:2px 9px;border-radius:20px;letter-spacing:0.4px">${curState.targetFlag} ${curState.targetCode}</span>`
+    : '';
+
+  let html = `
+    <div class="results-header">
+      <div class="results-title">${catLabel} · ${type}</div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        ${curLabel}
+        <div class="results-meta">${now}</div>
+      </div>
+    </div>
+
+    <div class="kpi-grid">
+      ${results.kpis.map(k => `
+        <div class="kpi-card ${k.highlight?'highlight':''}">
+          <div class="kpi-label">${k.label}</div>
+          <div class="kpi-value">${k.value}</div>
+          ${k.rawNum !== undefined && curActive ? fmtDual(k.rawNum) : ''}
+          ${k.sub ? `<div class="kpi-sub">${k.sub}</div>` : ''}
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  if (results.breakdown && results.breakdown.length > 0) {
+    const maxVal = Math.max(...results.breakdown.map(b => b.pct));
+    html += `
+      <div class="breakdown-card">
+        <div class="breakdown-title">Breakdown</div>
+        ${results.breakdown.map(b => `
+          <div class="breakdown-row">
+            <div class="breakdown-name">${b.name}</div>
+            <div class="breakdown-bar-wrap">
+              <div class="breakdown-bar" style="width:${maxVal>0?Math.min(b.pct/maxVal*100,100):0}%"></div>
+            </div>
+            <div class="breakdown-value">${b.value}</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  if (results.tableRows && results.tableRows.length > 0) {
+    // Group rows
+    const groups = {};
+    results.tableRows.forEach(r => {
+      if (!groups[r.group]) groups[r.group] = [];
+      groups[r.group].push(r);
+    });
+
+    html += `
+      <div class="table-section">
+        <div class="table-header">
+          <div class="table-title">Summary Table</div>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Group</th>
+                <th>Metric</th>
+                <th>Value</th>
+                <th>%</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${results.tableRows.map((r,i) => `
+                <tr>
+                  <td>${r.group}</td>
+                  <td>${r.metric}</td>
+                  <td class="accent-cell">${r.value}</td>
+                  <td>${r.pct}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
+  html += `
+    <div class="export-bar">
+      <button class="btn-export" onclick="exportTXT()" aria-label="Export as TXT">⬇ Export TXT</button>
+      <button class="btn-export" onclick="copyResults()" aria-label="Copy results to clipboard">⎘ Copy Results</button>
+    </div>
+  `;
+
+  out.innerHTML = html;
+}
+
+/* ── Export TXT ── */
+function exportTXT() {
+  if (!lastResults) { showToast('⚠ Nothing to export yet'); return; }
+  const { cat, type, results } = lastResults;
+  const catLabel = document.getElementById('category').options[document.getElementById('category').selectedIndex].text;
+  const now = new Date().toLocaleString();
+
+  const curInfo = curState.enabled && curState.rate > 0 && curState.baseCode !== curState.targetCode
+    ? `${curState.baseCode} → ${curState.targetCode} @ ${curState.rate}`
+    : 'USD (no conversion)';
+
+  let txt = `CUSTOM CALCULATOR — VIADECIDE\n`;
+  txt += `${'='.repeat(50)}\n`;
+  txt += `Category : ${catLabel}\n`;
+  txt += `Type     : ${type}\n`;
+  txt += `Currency : ${curInfo}\n`;
+  txt += `Generated: ${now}\n\n`;
+
+  txt += `KEY METRICS\n${'-'.repeat(30)}\n`;
+  results.kpis.forEach(k => {
+    txt += `${k.label.padEnd(24)} ${k.value}`;
+    if (k.sub) txt += `  (${k.sub})`;
+    txt += '\n';
+  });
+
+  txt += `\nBREAKDOWN\n${'-'.repeat(30)}\n`;
+  results.breakdown.forEach(b => {
+    txt += `${b.name.padEnd(28)} ${b.value}  ${fmtPct(b.pct)}\n`;
+  });
+
+  txt += `\nSUMMARY TABLE\n${'-'.repeat(30)}\n`;
+  txt += `${'Group'.padEnd(16)} ${'Metric'.padEnd(24)} ${'Value'.padEnd(18)} %\n`;
+  results.tableRows.forEach(r => {
+    txt += `${r.group.padEnd(16)} ${r.metric.padEnd(24)} ${r.value.padEnd(18)} ${r.pct}\n`;
+  });
+
+  txt += `\n${'='.repeat(50)}\nViaDecide Custom Calculator · Beta\n`;
+
+  const blob = new Blob([txt], {type: 'text/plain'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'custom-calculator-export.txt';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✓ Exported successfully');
+}
+
+/* ── Copy Results ── */
+function copyResults() {
+  if (!lastResults) { showToast('⚠ Nothing to copy yet'); return; }
+  const { results } = lastResults;
+  let text = results.kpis.map(k => `${k.label}: ${k.value}`).join('\n');
+  navigator.clipboard.writeText(text).then(() => showToast('✓ Copied to clipboard')).catch(() => showToast('⚠ Copy failed'));
+}
+
+/* ── localStorage ── */
+function saveData() {
+  const data = {
+    category: document.getElementById('category').value,
+    type: document.getElementById('calc-type').value,
+    cur_enabled: document.getElementById('cur-enabled') ? document.getElementById('cur-enabled').checked : false,
+    cur_base: document.getElementById('base-currency') ? document.getElementById('base-currency').value : 'USD',
+    cur_target: document.getElementById('target-currency') ? document.getElementById('target-currency').value : 'USD',
+    cur_rate: document.getElementById('exchange-rate') ? document.getElementById('exchange-rate').value : '',
+  };
+  const cat = data.category;
+  const type = data.type;
+  if (cat && type && FIELDS[cat] && FIELDS[cat][type]) {
+    FIELDS[cat][type].forEach(f => {
+      const el = document.getElementById(f.id);
+      if (el) data[f.id] = el.value;
+    });
+  }
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e){}
+}
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch(e) { return {}; }
+}
+
+function clearSavedData() {
+  try { localStorage.removeItem(STORAGE_KEY); } catch(e){}
+  document.getElementById('category').value = '';
+  document.getElementById('calc-type').innerHTML = '<option value="">— Select Type —</option>';
+  renderDynamicFields();
+  document.getElementById('output-section').innerHTML = `
+    <div class="empty-state">
+      <div class="empty-state-icon">📊</div>
+      <p>Configure your inputs and hit Calculate to see results</p>
+    </div>`;
+  lastResults = null;
+  // Reset currency
+  const curEn = document.getElementById('cur-enabled');
+  if (curEn) { curEn.checked = false; onCurrencyChange(); }
+  showToast('✓ Saved data cleared');
+}
+
+/* ── Debounce ── */
+function debounce(fn, ms) {
+  let t;
+  return function(...args) { clearTimeout(t); t = setTimeout(() => fn.apply(this, args), ms); };
+}
+
+/* ── Command Orb ── */
+document.getElementById('orb-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { runOrb(this.value.trim()); this.value = ''; }
+});
+
+function runOrb(cmd) {
+  const c = cmd.toLowerCase().trim();
+  if (!c) return;
+  if (c === 'calculate' || c === 'calc' || c === 'go' || c === 'run') {
+    calculate();
+  } else if (c === 'reset' || c === 'clear') {
+    clearSavedData();
+  } else if (c === 'export' || c === 'download') {
+    exportTXT();
+  } else if (c === 'revenue') {
+    document.getElementById('category').value = 'revenue';
+    document.getElementById('category').dispatchEvent(new Event('change'));
+  } else if (c === 'expenses' || c === 'expense') {
+    document.getElementById('category').value = 'expenses';
+    document.getElementById('category').dispatchEvent(new Event('change'));
+  } else if (c === 'profit') {
+    document.getElementById('category').value = 'profit';
+    document.getElementById('category').dispatchEvent(new Event('change'));
+  } else if (c === 'roi') {
+    document.getElementById('category').value = 'roi';
+    document.getElementById('category').dispatchEvent(new Event('change'));
+  } else if (c === 'tax') {
+    document.getElementById('category').value = 'tax';
+    document.getElementById('category').dispatchEvent(new Event('change'));
+  } else if (c === 'breakeven' || c === 'break-even') {
+    document.getElementById('category').value = 'breakeven';
+    document.getElementById('category').dispatchEvent(new Event('change'));
+  } else if (c === 'cashflow' || c === 'cash') {
+    document.getElementById('category').value = 'cashflow';
+    document.getElementById('category').dispatchEvent(new Event('change'));
+  } else if (c === 'payroll') {
+    document.getElementById('category').value = 'payroll';
+    document.getElementById('category').dispatchEvent(new Event('change'));
+  } else if (c === 'copy') {
+    copyResults();
+  } else if (c === 'currency' || c === 'cur' || c === 'fx') {
+    toggleCurrencyPanel();
+    const body = document.getElementById('currency-body');
+    if (body && body.style.display === 'none') { body.style.display='flex'; body.style.flexDirection='column'; }
+  } else if (c === 'usd') {
+    document.getElementById('cur-enabled').checked = false; onCurrencyChange(); showToast('💵 Reset to USD');
+  } else {
+    showToast('⚠ Unknown command: ' + cmd);
+  }
+}
+
+/* ── Restore saved state on load ── */
+(function restoreState() {
+  // Build currency dropdowns first
+  buildCurrencyDropdowns();
+
+  const saved = loadData();
+
+  // Restore currency settings
+  if (saved.cur_base) {
+    const baseEl = document.getElementById('base-currency');
+    const targetEl = document.getElementById('target-currency');
+    const rateEl = document.getElementById('exchange-rate');
+    const enabledEl = document.getElementById('cur-enabled');
+    if (baseEl) baseEl.value = saved.cur_base || 'USD';
+    if (targetEl) targetEl.value = saved.cur_target || 'USD';
+    if (rateEl) rateEl.value = saved.cur_rate || '';
+    if (enabledEl) enabledEl.checked = saved.cur_enabled || false;
+    onCurrencyChange();
+    // Open panel if currency was active
+    if (saved.cur_enabled && saved.cur_target && saved.cur_target !== 'USD') {
+      const body = document.getElementById('currency-body');
+      if (body) { body.style.display = 'flex'; body.style.flexDirection = 'column'; }
+    }
+  }
+
+  if (!saved.category) return;
+
+  const catEl = document.getElementById('category');
+  catEl.value = saved.category;
+
+  if (saved.category && TYPES[saved.category]) {
+    const typeEl = document.getElementById('calc-type');
+    typeEl.innerHTML = '<option value="">— Select Type —</option>';
+    TYPES[saved.category].forEach(t => {
+      const o = document.createElement('option');
+      o.value = t; o.textContent = t;
+      typeEl.appendChild(o);
+    });
+    if (saved.type) typeEl.value = saved.type;
+  }
+
+  renderDynamicFields();
+})();
+</script>
+</body>
+</html>
